@@ -6,7 +6,7 @@ export type EnvCheck = {
 };
 
 type AgentBridgeStatus = {
-  label: "MASBRE" | "MASBRO" | "MASSEH";
+  label: "MASBRE" | "MASBRO" | "MASSEH" | "GPT" | "CLAUDE" | "GEMINI" | "QWEN" | "DEEPSEEK" | "GROK";
   profile: string;
   agentId: string;
   sessionKey: string;
@@ -78,7 +78,13 @@ export function getConfigStatus(): ConfigStatus {
   const cliBridgeConfigured = hasValue(openClawCliPath) && hasValue(openClawAgentId) && hasValue(openClawSessionKey);
   const httpBridgeConfigured = hasValue(openClawGatewayUrl) && hasValue(openClawApiKey);
   const providerReadyByKey = {
+    OPENAI_API_KEY: hasValue(process.env.OPENAI_API_KEY),
+    ANTHROPIC_API_KEY: hasValue(process.env.ANTHROPIC_API_KEY),
+    GEMINI_API_KEY: hasValue(process.env.GEMINI_API_KEY),
     NVIDIA_API_KEY: hasValue(process.env.NVIDIA_API_KEY),
+    QWEN_API_KEY: hasValue(process.env.QWEN_API_KEY),
+    DEEPSEEK_API_KEY: hasValue(process.env.DEEPSEEK_API_KEY),
+    XAI_API_KEY: hasValue(process.env.XAI_API_KEY),
   };
 
   const agentBridgeDefaults: AgentBridgeStatus[] = [
@@ -107,6 +113,60 @@ export function getConfigStatus(): ConfigStatus {
       sessionKey: process.env.OPENCLAW_MASSEH_SESSION_KEY || "agent:main:dashboard-masseh",
       requiredProvider: null,
       providerReady: true,
+      configured: false,
+    },
+    {
+      label: "GPT",
+      profile: process.env.OPENCLAW_GPT_PROFILE || "gpt",
+      agentId: process.env.OPENCLAW_GPT_AGENT_ID || "main",
+      sessionKey: process.env.OPENCLAW_GPT_SESSION_KEY || "agent:main:dashboard-gpt",
+      requiredProvider: "OPENAI_API_KEY",
+      providerReady: providerReadyByKey.OPENAI_API_KEY,
+      configured: false,
+    },
+    {
+      label: "CLAUDE",
+      profile: process.env.OPENCLAW_CLAUDE_PROFILE || "claude",
+      agentId: process.env.OPENCLAW_CLAUDE_AGENT_ID || "main",
+      sessionKey: process.env.OPENCLAW_CLAUDE_SESSION_KEY || "agent:main:dashboard-claude",
+      requiredProvider: "ANTHROPIC_API_KEY",
+      providerReady: providerReadyByKey.ANTHROPIC_API_KEY,
+      configured: false,
+    },
+    {
+      label: "GEMINI",
+      profile: process.env.OPENCLAW_GEMINI_PROFILE || "gemini",
+      agentId: process.env.OPENCLAW_GEMINI_AGENT_ID || "main",
+      sessionKey: process.env.OPENCLAW_GEMINI_SESSION_KEY || "agent:main:dashboard-gemini",
+      requiredProvider: "GEMINI_API_KEY",
+      providerReady: providerReadyByKey.GEMINI_API_KEY,
+      configured: false,
+    },
+    {
+      label: "QWEN",
+      profile: process.env.OPENCLAW_QWEN_PROFILE || "qwen",
+      agentId: process.env.OPENCLAW_QWEN_AGENT_ID || "main",
+      sessionKey: process.env.OPENCLAW_QWEN_SESSION_KEY || "agent:main:dashboard-qwen",
+      requiredProvider: "QWEN_API_KEY",
+      providerReady: providerReadyByKey.QWEN_API_KEY,
+      configured: false,
+    },
+    {
+      label: "DEEPSEEK",
+      profile: process.env.OPENCLAW_DEEPSEEK_PROFILE || "deepseek",
+      agentId: process.env.OPENCLAW_DEEPSEEK_AGENT_ID || "main",
+      sessionKey: process.env.OPENCLAW_DEEPSEEK_SESSION_KEY || "agent:main:dashboard-deepseek",
+      requiredProvider: "DEEPSEEK_API_KEY",
+      providerReady: providerReadyByKey.DEEPSEEK_API_KEY,
+      configured: false,
+    },
+    {
+      label: "GROK",
+      profile: process.env.OPENCLAW_GROK_PROFILE || "grok",
+      agentId: process.env.OPENCLAW_GROK_AGENT_ID || "main",
+      sessionKey: process.env.OPENCLAW_GROK_SESSION_KEY || "agent:main:dashboard-grok",
+      requiredProvider: "XAI_API_KEY",
+      providerReady: providerReadyByKey.XAI_API_KEY,
       configured: false,
     },
   ];

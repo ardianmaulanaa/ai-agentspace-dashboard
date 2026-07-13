@@ -124,7 +124,7 @@ type Profile = {
   app?: boolean;
 };
 
-type AgentName = "MASBRE" | "MASBRO" | "MASSEH";
+type AgentName = "MASBRE" | "MASBRO" | "MASSEH" | "GPT" | "CLAUDE" | "GEMINI" | "QWEN" | "DEEPSEEK" | "GROK";
 
 const ACCENTS: Accent[] = [
   { from: "#22d3ee", to: "#10b981" },
@@ -179,9 +179,15 @@ const profiles: Profile[] = [
   { name: "MASBRE", role: "AI lead assistant", initials: "MB", accent: ["#22d3ee","#3b82f6"], status: "online", app: true },
   { name: "MASBRO", role: "AI support", initials: "MO", accent: ["#fbbf24","#f97316"], status: "online", app: true },
   { name: "MASSEH", role: "AI reviewer", initials: "MS", accent: ["#34d399","#14b8a6"], status: "online", app: true },
+  { name: "GPT", role: "OpenAI generalist", initials: "GP", accent: ["#10b981","#22d3ee"], status: "online", app: true },
+  { name: "CLAUDE", role: "Anthropic reasoning", initials: "CL", accent: ["#a78bfa","#f472b6"], status: "online", app: true },
+  { name: "GEMINI", role: "Google multimodal", initials: "GM", accent: ["#60a5fa","#818cf8"], status: "online", app: true },
+  { name: "QWEN", role: "Alibaba coding", initials: "QW", accent: ["#f97316","#facc15"], status: "online", app: true },
+  { name: "DEEPSEEK", role: "DeepSeek reasoning", initials: "DS", accent: ["#38bdf8","#2563eb"], status: "online", app: true },
+  { name: "GROK", role: "xAI realtime style", initials: "GX", accent: ["#94a3b8","#64748b"], status: "online", app: true },
 ];
 
-const AGENT_OPTIONS: AgentName[] = ["MASBRE", "MASBRO", "MASSEH"];
+const AGENT_OPTIONS: AgentName[] = ["MASBRE", "MASBRO", "MASSEH", "GPT", "CLAUDE", "GEMINI", "QWEN", "DEEPSEEK", "GROK"];
 
 const MODEL_PREFERENCES: ModelPreference[] = [
   {
@@ -3163,7 +3169,7 @@ export default function AgentSpaceDashboard() {
           <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: isMobile ? "14px" : "16px" }}>
             {/* Stats row */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginBottom: 16 }}>
-              {[["Online", "4"], ["AI", "3"], ["Users", "1"]].map(([label, val]) => (
+              {[["Online", String(visibleProfiles.filter(profile => profile.status === "online").length)], ["AI", String(visibleProfiles.filter(profile => profile.app).length)], ["Users", String(visibleProfiles.filter(profile => !profile.app).length)]].map(([label, val]) => (
                 <div key={label} style={{
                   borderRadius: 14, padding: "11px 8px",
                   background: "var(--surface)",

@@ -18,10 +18,22 @@ type AgentInvokeBody = {
 };
 
 type OpenClawAgentConfig = {
-  label: "MASBRE" | "MASBRO" | "MASSEH";
+  label: "MASBRE" | "MASBRO" | "MASSEH" | "GPT" | "CLAUDE" | "GEMINI" | "QWEN" | "DEEPSEEK" | "GROK";
   profile: string;
   agentId: string;
   sessionKey: string;
+};
+
+const OPENCLAW_AGENT_DEFAULTS: Record<OpenClawAgentConfig["label"], { profile: string; sessionSuffix: string }> = {
+  MASBRE: { profile: "masbre", sessionSuffix: "masbre" },
+  MASBRO: { profile: "masbro", sessionSuffix: "masbro" },
+  MASSEH: { profile: "masseh", sessionSuffix: "masseh" },
+  GPT: { profile: "gpt", sessionSuffix: "gpt" },
+  CLAUDE: { profile: "claude", sessionSuffix: "claude" },
+  GEMINI: { profile: "gemini", sessionSuffix: "gemini" },
+  QWEN: { profile: "qwen", sessionSuffix: "qwen" },
+  DEEPSEEK: { profile: "deepseek", sessionSuffix: "deepseek" },
+  GROK: { profile: "grok", sessionSuffix: "grok" },
 };
 
 function formatTime(value: string) {
@@ -37,42 +49,25 @@ function getEnvValue(key: string, fallback: string) {
 }
 
 function normalizeAgentLabel(agent: string): OpenClawAgentConfig["label"] {
-  const normalizedAgent = agent.trim().toLowerCase();
+  const normalizedAgent = agent.trim().toUpperCase();
 
-  if (normalizedAgent === "masbro") return "MASBRO";
-  if (normalizedAgent === "masseh") return "MASSEH";
+  if (normalizedAgent in OPENCLAW_AGENT_DEFAULTS) {
+    return normalizedAgent as OpenClawAgentConfig["label"];
+  }
+
   return "MASBRE";
 }
 
 function getOpenClawAgentConfig(agent: string): OpenClawAgentConfig {
   const label = normalizeAgentLabel(agent);
-
-  if (label === "MASBRO") {
-    const agentId = getEnvValue("OPENCLAW_MASBRO_AGENT_ID", "main");
-    return {
-      label,
-      profile: getEnvValue("OPENCLAW_MASBRO_PROFILE", "masbro"),
-      agentId,
-      sessionKey: getEnvValue("OPENCLAW_MASBRO_SESSION_KEY", `agent:${agentId}:dashboard-masbro`),
-    };
-  }
-
-  if (label === "MASSEH") {
-    const agentId = getEnvValue("OPENCLAW_MASSEH_AGENT_ID", "main");
-    return {
-      label,
-      profile: getEnvValue("OPENCLAW_MASSEH_PROFILE", "masseh"),
-      agentId,
-      sessionKey: getEnvValue("OPENCLAW_MASSEH_SESSION_KEY", `agent:${agentId}:dashboard-masseh`),
-    };
-  }
-
-  const agentId = getEnvValue("OPENCLAW_MASBRE_AGENT_ID", getEnvValue("OPENCLAW_AGENT_ID", "main"));
+  const defaults = OPENCLAW_AGENT_DEFAULTS[label];
+  const envPrefix = `OPENCLAW_${label}`;
+  const agentId = getEnvValue(`${envPrefix}_AGENT_ID`, label === "MASBRE" ? getEnvValue("OPENCLAW_AGENT_ID", "main") : "main");
   return {
     label,
-    profile: getEnvValue("OPENCLAW_MASBRE_PROFILE", getEnvValue("OPENCLAW_PROFILE", "masbre")),
+    profile: getEnvValue(`${envPrefix}_PROFILE`, label === "MASBRE" ? getEnvValue("OPENCLAW_PROFILE", defaults.profile) : defaults.profile),
     agentId,
-    sessionKey: getEnvValue("OPENCLAW_MASBRE_SESSION_KEY", getEnvValue("OPENCLAW_SESSION_KEY", `agent:${agentId}:dashboard-masbre`)),
+    sessionKey: getEnvValue(`${envPrefix}_SESSION_KEY`, label === "MASBRE" ? getEnvValue("OPENCLAW_SESSION_KEY", `agent:${agentId}:dashboard-${defaults.sessionSuffix}`) : `agent:${agentId}:dashboard-${defaults.sessionSuffix}`),
   };
 }
 
