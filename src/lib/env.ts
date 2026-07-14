@@ -20,11 +20,10 @@ export type ConfigStatus = {
     configured: boolean;
     userStore: string;
     userStoreSupabase: boolean;
+    jwtSecretConfigured: boolean;
     usernameConfigured: boolean;
     passwordHashConfigured: boolean;
     passwordFallbackConfigured: boolean;
-    accessTokenConfigured: boolean;
-    refreshTokenConfigured: boolean;
     role: string;
   };
   supabase: {
@@ -84,8 +83,7 @@ export function getConfigStatus(): ConfigStatus {
   const authUserStore = process.env.AUTH_USER_STORE || "supabase-auth";
   const dashboardPasswordHash = process.env.DASHBOARD_PASSWORD_HASH;
   const dashboardPassword = process.env.DASHBOARD_PASSWORD;
-  const dashboardAccessToken = process.env.DASHBOARD_ACCESS_TOKEN;
-  const dashboardRefreshToken = process.env.DASHBOARD_REFRESH_TOKEN;
+  const dashboardJwtSecret = process.env.DASHBOARD_JWT_SECRET;
   const dashboardRole = process.env.DASHBOARD_ROLE || "admin";
   const openClawCliPath = process.env.OPENCLAW_CLI_PATH || "openclaw";
   const openClawProfile = process.env.OPENCLAW_PROFILE || "masbre";
@@ -218,15 +216,13 @@ export function getConfigStatus(): ConfigStatus {
         hasValue(supabaseUrl) &&
         hasValue(supabaseAnonKey) &&
         hasValue(supabaseServiceRoleKey) &&
-        hasValue(dashboardAccessToken) &&
-        hasValue(dashboardRefreshToken),
+        hasValue(dashboardJwtSecret),
       userStore: authUserStore,
       userStoreSupabase: authUserStore === "supabase-auth",
+      jwtSecretConfigured: hasValue(dashboardJwtSecret),
       usernameConfigured: hasValue(dashboardUsername),
       passwordHashConfigured: hasValue(dashboardPasswordHash),
       passwordFallbackConfigured: hasValue(dashboardPassword),
-      accessTokenConfigured: hasValue(dashboardAccessToken),
-      refreshTokenConfigured: hasValue(dashboardRefreshToken),
       role: dashboardRole,
     },
     supabase: {

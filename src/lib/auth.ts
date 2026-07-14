@@ -1,4 +1,4 @@
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 export const DASHBOARD_ACCESS_COOKIE = "agentspace_access";
@@ -16,6 +16,15 @@ export type DashboardUser = {
   role: DashboardRole;
 };
 
+type DashboardJwtPayload = DashboardUser & {
+  typ: "access" | "refresh";
+  iat: number;
+  exp: number;
+};
+
+const ACCESS_TOKEN_TTL_SECONDS = 60 * 15;
+const REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7;
+
 export function getDashboardUser(): DashboardUser {
   return {
     username: process.env.DASHBOARD_USERNAME?.trim() || "ardian",
@@ -32,12 +41,8 @@ export function getDashboardPasswordHash() {
   return process.env.DASHBOARD_PASSWORD_HASH?.trim() || "";
 }
 
-export function getDashboardAccessToken() {
-  return process.env.DASHBOARD_ACCESS_TOKEN?.trim() || "";
-}
-
-export function getDashboardRefreshToken() {
-  return process.env.DASHBOARD_REFRESH_TOKEN?.trim() || "";
+export function getDashboardJwtSecret() {
+  return process.env.DASHBOARD_JWT_SECRET?.trim() || "";
 }
 
 export function getDashboardRole(): DashboardRole {
@@ -59,6 +64,82 @@ function safeEqualString(actual: string | undefined, expected: string) {
   const expectedBuffer = Buffer.from(expected);
 
   return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+function base64UrlEncode(value: Buffer | string) {
+  return Buffer.from(value)
+    .toString("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
+function base64UrlDecode(value: string) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+
+  return Buffer.from(padded, "base64").toString("utf8");
+}
+
+function signJwt(unsignedToken: string) {
+  return base64UrlEncode(createHmac("sha256", getDashboardJwtSecret()).update(unsignedToken).digest());
+}
+
+function createDashboardJwt(user: DashboardUser, type: DashboardJwtPayload["typ"], ttlSeconds: number) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64UrlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const payload = base64UrlEncode(JSON.stringify({
+    username: user.username,
+    displayName: user.displayName,
+    role: user.role,
+    typ: type,
+    iat: now,
+    exp: now + ttlSeconds,
+  } satisfies DashboardJwtPayload));
+  const unsignedToken = `${header}.${payload}`;
+
+  return `${unsignedToken}.${signJwt(unsignedToken)}`;
+}
+
+export function verifyDashboardJwt(token: string | undefined, expectedType: DashboardJwtPayload["typ"]) {
+  if (!token || !getDashboardJwtSecret()) {
+    return null;
+  }
+
+  const parts = token.split(".");
+
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  const [header, payload, signature] = parts;
+  const unsignedToken = `${header}.${payload}`;
+  const expectedSignature = signJwt(unsignedToken);
+
+  if (!safeEqualString(signature, expectedSignature)) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(base64UrlDecode(payload)) as DashboardJwtPayload;
+    const now = Math.floor(Date.now() / 1000);
+
+    if (parsed.typ !== expectedType || parsed.exp <= now) {
+      return null;
+    }
+
+    if (parsed.role !== "admin" && parsed.role !== "owner" && parsed.role !== "member") {
+      return null;
+    }
+
+    return {
+      username: parsed.username,
+      displayName: parsed.displayName,
+      role: parsed.role,
+    } satisfies DashboardUser;
+  } catch {
+    return null;
+  }
 }
 
 function verifyScryptPassword(password: string, hashValue: string) {
@@ -96,53 +177,29 @@ export function verifyDashboardPassword(password: string) {
 }
 
 export function setDashboardSessionCookies(response: NextResponse, user: DashboardUser) {
-  response.cookies.set(DASHBOARD_ACCESS_COOKIE, getDashboardAccessToken(), {
+  response.cookies.set(DASHBOARD_ACCESS_COOKIE, createDashboardJwt(user, "access", ACCESS_TOKEN_TTL_SECONDS), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 15,
+    maxAge: ACCESS_TOKEN_TTL_SECONDS,
   });
 
-  response.cookies.set(DASHBOARD_REFRESH_COOKIE, getDashboardRefreshToken(), {
+  response.cookies.set(DASHBOARD_REFRESH_COOKIE, createDashboardJwt(user, "refresh", REFRESH_TOKEN_TTL_SECONDS), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-
-  response.cookies.set(DASHBOARD_USER_COOKIE, user.username, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-
-  response.cookies.set(DASHBOARD_DISPLAY_COOKIE, user.displayName, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-
-  response.cookies.set(DASHBOARD_ROLE_COOKIE, user.role, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: REFRESH_TOKEN_TTL_SECONDS,
   });
 }
 
 export function isDashboardAccessToken(token: string | undefined) {
-  return safeEqualString(token, getDashboardAccessToken());
+  return Boolean(verifyDashboardJwt(token, "access"));
 }
 
 export function isDashboardRefreshToken(token: string | undefined) {
-  return safeEqualString(token, getDashboardRefreshToken());
+  return Boolean(verifyDashboardJwt(token, "refresh"));
 }
 
 export function isDashboardSessionToken(token: string | undefined) {
@@ -168,23 +225,13 @@ export function getDashboardRequestUser(request: Request): DashboardUser | null 
   const accessToken =
     getCookieValue(cookieHeader, DASHBOARD_ACCESS_COOKIE) ||
     getCookieValue(cookieHeader, DASHBOARD_SESSION_COOKIE);
-  const username = getCookieValue(cookieHeader, DASHBOARD_USER_COOKIE);
-  const displayName = getCookieValue(cookieHeader, DASHBOARD_DISPLAY_COOKIE);
-  const role = getCookieValue(cookieHeader, DASHBOARD_ROLE_COOKIE);
+  const jwtUser = verifyDashboardJwt(accessToken, "access");
 
-  if (!isDashboardAccessToken(accessToken)) {
-    return null;
+  if (jwtUser) {
+    return jwtUser;
   }
 
-  if (username && displayName && (role === "admin" || role === "owner" || role === "member")) {
-    return {
-      username: decodeURIComponent(username),
-      displayName: decodeURIComponent(displayName),
-      role,
-    };
-  }
-
-  return getDashboardUser();
+  return null;
 }
 
 export function isDashboardRequestAuthenticated(request: Request) {

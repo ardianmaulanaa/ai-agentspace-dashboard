@@ -11,6 +11,16 @@ create table if not exists public.workspaces (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.workspace_members (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null default 'member' check (role in ('admin', 'owner', 'member')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (workspace_id, user_id)
+);
+
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -72,6 +82,9 @@ create table if not exists public.forum_replies (
 
 create index if not exists categories_workspace_position_idx
   on public.categories(workspace_id, position);
+
+create index if not exists workspace_members_user_idx
+  on public.workspace_members(user_id);
 
 create index if not exists channels_workspace_category_position_idx
   on public.channels(workspace_id, category_id, position);

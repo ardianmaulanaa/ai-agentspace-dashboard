@@ -399,10 +399,9 @@ AUTH_USER_STORE=supabase-auth
 DASHBOARD_USERNAME=
 DASHBOARD_DISPLAY_NAME=
 DASHBOARD_ROLE=admin
+DASHBOARD_JWT_SECRET=
 DASHBOARD_PASSWORD_HASH=
 DASHBOARD_PASSWORD=
-DASHBOARD_ACCESS_TOKEN=
-DASHBOARD_REFRESH_TOKEN=
 OPENCLAW_CLI_PATH=openclaw
 OPENCLAW_PROFILE=masbre
 OPENCLAW_AGENT_ID=main
@@ -3516,8 +3515,7 @@ export default function AgentSpaceDashboard() {
                     </span>
                     <div style={{ marginTop: 7, display: "grid", gap: 5 }}>
                       {[
-                        ["Access token", configStatus.auth.accessTokenConfigured],
-                        ["Refresh token", configStatus.auth.refreshTokenConfigured],
+                        ["JWT secret", configStatus.auth.jwtSecretConfigured],
                         ["Supabase Auth", configStatus.auth.userStoreSupabase],
                       ].map(([label, ready]) => (
                         <div key={label as string} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>

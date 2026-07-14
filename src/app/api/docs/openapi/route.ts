@@ -32,7 +32,7 @@ export async function GET() {
       "/api/auth/login": {
         post: {
           tags: ["Auth"],
-          summary: "Login and issue access/refresh session cookies",
+          summary: "Login with Supabase Auth and issue JWT access/refresh cookies",
           requestBody: {
             required: true,
             content: {
@@ -86,7 +86,7 @@ export async function GET() {
       "/api/auth/refresh": {
         post: {
           tags: ["Auth"],
-          summary: "Refresh the short-lived access cookie using refresh cookie",
+          summary: "Refresh the short-lived JWT access cookie using refresh cookie",
           responses: {
             "200": { description: "Access cookie refreshed" },
             "401": { description: "Invalid refresh token" },
@@ -182,6 +182,10 @@ export async function GET() {
           parameters: [
             { name: "workspaceId", in: "query", schema: { type: "string" } },
             { name: "channelId", in: "query", schema: { type: "string" } },
+            { name: "page", in: "query", schema: { type: "integer", minimum: 1, default: 1 } },
+            { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 50 } },
+            { name: "search", in: "query", schema: { type: "string" } },
+            { name: "senderType", in: "query", schema: { type: "string", enum: ["user", "agent", "system"] } },
           ],
           responses: { "200": { description: "Messages" }, "401": { description: "Unauthorized" } },
         },

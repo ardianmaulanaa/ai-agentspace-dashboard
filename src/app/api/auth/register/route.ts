@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  getDashboardAccessToken,
-  getDashboardRefreshToken,
+  getDashboardJwtSecret,
   setDashboardSessionCookies,
 } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
@@ -46,12 +45,11 @@ export async function POST(request: Request) {
     return validationError("Password confirmation does not match.");
   }
 
-  const accessToken = getDashboardAccessToken();
-  const refreshToken = getDashboardRefreshToken();
+  const jwtSecret = getDashboardJwtSecret();
 
-  if (!accessToken || !refreshToken) {
+  if (!jwtSecret) {
     return NextResponse.json(
-      { ok: false, error: "Dashboard access/refresh token env is not configured yet." },
+      { ok: false, error: "Dashboard JWT secret env is not configured yet." },
       { status: 500 },
     );
   }

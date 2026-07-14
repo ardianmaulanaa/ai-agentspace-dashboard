@@ -57,10 +57,9 @@ Auth utama memakai Supabase Authentication Users. Env dashboard di bawah ini han
 DASHBOARD_USERNAME=ardian
 DASHBOARD_DISPLAY_NAME=Ardian
 DASHBOARD_ROLE=admin
+DASHBOARD_JWT_SECRET=
 DASHBOARD_PASSWORD_HASH=
 DASHBOARD_PASSWORD=
-DASHBOARD_ACCESS_TOKEN=
-DASHBOARD_REFRESH_TOKEN=
 ```
 
 `DASHBOARD_PASSWORD_HASH` direkomendasikan untuk demo penilaian. Format yang didukung:
@@ -103,9 +102,10 @@ Status: sebagian besar sudah ada.
 
 - Login memakai email Supabase Auth dan password. Fallback admin lokal masih tersedia untuk demo.
 - Register member baru melalui halaman `/register` dan Supabase Authentication Users.
-- Fallback password admin mendukung hash scrypt.
+- Access token dan refresh token berbentuk JWT signed HMAC, disimpan di HTTP-only cookie.
+- Password utama dikelola oleh Supabase Auth. Fallback password admin mendukung hash scrypt.
 - Password user hasil register dikelola oleh Supabase Auth, bukan file lokal.
-- Session memakai HTTP-only access cookie dan refresh cookie.
+- Session memakai HTTP-only JWT access cookie dan JWT refresh cookie.
 - Endpoint refresh tersedia di `POST /api/auth/refresh`.
 - Logout menghapus semua cookie auth.
 - Login memiliki in-memory rate limiting untuk mengurangi brute force.
@@ -114,8 +114,7 @@ Status: sebagian besar sudah ada.
 
 Yang belum dibuat penuh:
 
-- JWT signed token belum dipakai. Implementasi sekarang memakai server-side opaque token dari env.
-- Multi-user database belum ada; user dashboard masih single-user dari env.
+- Workspace membership belum menjadi endpoint CRUD tersendiri.
 
 ### 2. Kelengkapan & Logika Bisnis
 
@@ -123,6 +122,8 @@ Status: sudah ada untuk MVP.
 
 Entity utama:
 
+- Supabase `auth.users`
+- `workspace_members` (M-to-M antara auth user dan workspace)
 - `workspaces`
 - `categories`
 - `channels`
@@ -136,6 +137,7 @@ Logika bisnis:
 - User bisa membuat category.
 - User bisa membuat channel bertipe `text`, `forum`, atau `voice`.
 - User bisa membuat pesan dengan attachment image data URL.
+- User bisa list message dengan `page`, `limit`, `search`, dan `senderType`.
 - User bisa edit, pin, react, dan delete message.
 - User bisa membuat forum post dan reply.
 - User bisa invoke agent dan balasannya disimpan ke Supabase.
@@ -219,7 +221,8 @@ Endpoint ini mendokumentasikan auth, dashboard data, category, channel, message,
 Status: ada beberapa.
 
 - File upload ringan melalui image attachment data URL pada message.
-- Search/filter tersedia di UI dashboard.
+- Pagination, search, dan filtering tersedia pada `GET /api/messages`.
+- Search/filter juga tersedia di UI dashboard.
 - Login rate limiting tersedia.
 - Multi-agent bridge tersedia.
 - Admin cleanup dry-run tersedia.
@@ -287,7 +290,7 @@ Docs:
 ## Yang Masih Bisa Ditingkatkan
 
 - Tambah migration SQL Supabase di repo.
-- Tambah tabel users, roles, workspace_members untuk multi-user sungguhan.
-- Ganti opaque env token menjadi JWT access/refresh token yang signed.
+- Tambah endpoint CRUD workspace members untuk mengelola role per workspace dari dashboard.
+- Tambah Swagger UI interaktif dari OpenAPI JSON.
 - Tambah Swagger UI dari OpenAPI JSON.
 - Tambah automated API test.

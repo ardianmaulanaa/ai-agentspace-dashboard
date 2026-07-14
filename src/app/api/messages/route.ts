@@ -60,6 +60,12 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const workspaceInput = url.searchParams.get("workspaceId")?.trim() || "";
   const channelInput = url.searchParams.get("channelId")?.trim() || "";
+  const search = url.searchParams.get("search")?.trim() || "";
+  const senderType = url.searchParams.get("senderType")?.trim() || "";
+  const page = Math.max(1, Number(url.searchParams.get("page") || 1) || 1);
+  const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") || 50) || 50));
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
   const workspaceResult = await resolveWorkspaceId(supabase, workspaceInput);
 
   if (workspaceResult.error || !workspaceResult.id) {
@@ -78,13 +84,22 @@ export async function GET(request: Request) {
     );
   }
 
-  const result = await supabase
+  let query = supabase
     .from("messages")
-    .select("id,sender_type,sender_name,content,metadata,created_at")
+    .select("id,sender_type,sender_name,content,metadata,created_at", { count: "exact" })
     .eq("workspace_id", workspaceResult.id)
     .eq("channel_id", channelResult.id)
-    .order("created_at", { ascending: true })
-    .limit(80);
+    .order("created_at", { ascending: true });
+
+  if (search) {
+    query = query.ilike("content", `%${search}%`);
+  }
+
+  if (senderType === "user" || senderType === "agent" || senderType === "system") {
+    query = query.eq("sender_type", senderType);
+  }
+
+  const result = await query.range(from, to);
 
   if (result.error) {
     return NextResponse.json(
@@ -95,6 +110,16 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true,
+    pagination: {
+      page,
+      limit,
+      total: result.count || 0,
+      hasMore: from + (result.data?.length || 0) < (result.count || 0),
+    },
+    filters: {
+      search: search || null,
+      senderType: senderType || null,
+    },
     messages: (result.data || []).map(mapMessageRow),
   });
 }

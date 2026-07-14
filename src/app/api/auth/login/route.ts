@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  getDashboardAccessToken,
+  getDashboardJwtSecret,
   getDashboardPasswordHash,
-  getDashboardRefreshToken,
   getDashboardUser,
   setDashboardSessionCookies,
   verifyDashboardPassword,
@@ -42,8 +41,7 @@ export async function POST(request: Request) {
   const email = typeof body?.email === "string" ? body.email.trim() : username;
   const password = typeof body?.password === "string" ? body.password : "";
   const user = getDashboardUser();
-  const accessToken = getDashboardAccessToken();
-  const refreshToken = getDashboardRefreshToken();
+  const jwtSecret = getDashboardJwtSecret();
   const clientKey = getClientKey(request, email);
   const supabase = createAuthSupabaseClient();
 
@@ -54,9 +52,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!accessToken || !refreshToken) {
+  if (!jwtSecret) {
     return NextResponse.json(
-      { ok: false, error: "Dashboard access/refresh token env is not configured yet." },
+      { ok: false, error: "Dashboard JWT secret env is not configured yet." },
       { status: 500 },
     );
   }
