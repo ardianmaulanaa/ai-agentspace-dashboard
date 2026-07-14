@@ -260,6 +260,43 @@ export async function GET() {
           },
         },
       },
+      "/api/admin/users": {
+        get: {
+          tags: ["Admin"],
+          summary: "List Supabase Auth users for admin RBAC management",
+          responses: {
+            "200": { description: "Users listed" },
+            "403": { description: "Admin role required" },
+            "500": { description: "Supabase/config error" },
+          },
+        },
+        patch: {
+          tags: ["Admin"],
+          summary: "Update a Supabase Auth user's dashboard role",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["userId", "role"],
+                  properties: {
+                    userId: { type: "string", description: "Supabase Auth user ID" },
+                    role: { type: "string", enum: ["admin", "owner", "member"] },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Role updated" },
+            "400": { description: "Validation error" },
+            "403": { description: "Admin role required" },
+            "404": { description: "User not found" },
+            "409": { description: "Self-downgrade blocked" },
+          },
+        },
+      },
     },
   });
 }

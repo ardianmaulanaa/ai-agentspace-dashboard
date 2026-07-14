@@ -1,5 +1,3 @@
--- AI AgentSpace Dashboard relational schema for Supabase/PostgreSQL.
--- Run this in Supabase SQL editor for a fresh demo database.
 
 create extension if not exists "pgcrypto";
 

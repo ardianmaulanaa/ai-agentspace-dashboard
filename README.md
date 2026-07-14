@@ -109,7 +109,8 @@ Status: sebagian besar sudah ada.
 - Endpoint refresh tersedia di `POST /api/auth/refresh`.
 - Logout menghapus semua cookie auth.
 - Login memiliki in-memory rate limiting untuk mengurangi brute force.
-- Role tersedia lewat `DASHBOARD_ROLE`.
+- Role admin/owner/member disimpan di Supabase Auth `user_metadata.role`.
+- Admin bisa melihat user dan mengubah role melalui endpoint `/api/admin/users` dan panel Config.
 - Endpoint admin cleanup dibatasi untuk role `admin`.
 
 Yang belum dibuat penuh:
@@ -265,6 +266,8 @@ Agent:
 
 Admin:
 
+- `GET /api/admin/users`
+- `PATCH /api/admin/users`
 - `POST /api/admin/cleanup`
 
 Docs:
@@ -277,20 +280,19 @@ Docs:
 2. Atau buka `/register` untuk membuat akun member.
 3. Buka dashboard.
 4. Cek config status.
-5. Buat category baru.
-6. Buat channel baru.
-7. Kirim message dengan atau tanpa attachment.
-8. Edit/pin/react message.
-9. Buat forum post.
-10. Tambah reply forum.
-11. Invoke agent MASBRE/MASBRO/MASSEH.
-12. Lihat balasan agent tersimpan di message history.
-13. Buka `/api/docs/openapi` untuk dokumentasi API.
+5. Load user list di panel Config, lalu ubah role member/owner/admin sebagai admin.
+6. Buat category baru.
+7. Buat channel baru.
+8. Kirim message dengan atau tanpa attachment.
+9. Edit/pin/react message.
+10. Buat forum post.
+11. Tambah reply forum.
+12. Invoke agent MASBRE/MASBRO/MASSEH.
+13. Lihat balasan agent tersimpan di message history.
+14. Buka `/api/docs/openapi` untuk dokumentasi API.
 
 ## Yang Masih Bisa Ditingkatkan
 
 - Tambah migration SQL Supabase di repo.
-- Tambah endpoint CRUD workspace members untuk mengelola role per workspace dari dashboard.
-- Tambah Swagger UI interaktif dari OpenAPI JSON.
 - Tambah Swagger UI dari OpenAPI JSON.
 - Tambah automated API test.

@@ -38,61 +38,63 @@ export default function LoginPage() {
 
   return (
     <main style={{
-      minHeight: "100vh",
+	      minHeight: "100dvh",
       display: "grid",
       placeItems: "center",
-      padding: 20,
-      background: "#060d1a",
-      color: "#e2e8f0",
-      fontFamily: "'Space Grotesk', Arial, sans-serif",
-      position: "relative",
-      overflow: "hidden",
-    }}>
-      <div style={{
-        position: "absolute",
-        inset: 0,
-        pointerEvents: "none",
-        background: "radial-gradient(circle at 22% 12%, rgba(34,211,238,0.18), transparent 34%), radial-gradient(circle at 80% 78%, rgba(16,185,129,0.12), transparent 32%)",
-      }} />
+	      padding: 20,
+	      background: "#111318",
+	      color: "#f4f6f8",
+	      fontFamily: "'Space Grotesk', Arial, sans-serif",
+	      position: "relative",
+	      overflow: "hidden",
+	    }}>
+	      <div style={{
+	        position: "absolute",
+	        inset: 0,
+	        pointerEvents: "none",
+	        backgroundImage: "linear-gradient(rgba(255,255,255,0.026) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.026) 1px, transparent 1px)",
+	        backgroundSize: "34px 34px",
+	        maskImage: "linear-gradient(to bottom, black, transparent 82%)",
+	      }} />
 
-      <form onSubmit={handleLogin} style={{
-        width: "min(420px, 100%)",
-        borderRadius: 18,
-        padding: 22,
-        background: "rgba(8,14,26,0.86)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        boxShadow: "0 24px 80px rgba(0,0,0,0.42)",
-        backdropFilter: "blur(18px)",
-        position: "relative",
-        zIndex: 1,
-      }}>
-        <div style={{
-          width: 48,
-          height: 48,
-          borderRadius: 14,
-          display: "grid",
-          placeItems: "center",
-          background: "linear-gradient(135deg, #22d3ee, #10b981)",
-          color: "#06111f",
-          fontSize: 18,
-          fontWeight: 900,
-          marginBottom: 16,
-          boxShadow: "0 0 24px rgba(34,211,238,0.38)",
-        }}>
-          AS
-        </div>
+	      <form onSubmit={handleLogin} style={{
+	        width: "min(420px, 100%)",
+	        borderRadius: 10,
+	        padding: 24,
+	        background: "rgba(18,20,25,0.92)",
+	        border: "1px solid rgba(255,255,255,0.10)",
+	        boxShadow: "0 18px 42px rgba(0,0,0,0.26)",
+	        backdropFilter: "blur(16px)",
+	        position: "relative",
+	        zIndex: 1,
+	      }}>
+	        <div style={{
+	          width: 46,
+	          height: 46,
+	          borderRadius: 8,
+	          display: "grid",
+	          placeItems: "center",
+	          background: "#14b8a6",
+	          color: "#041311",
+	          fontSize: 18,
+	          fontWeight: 900,
+	          marginBottom: 16,
+	          boxShadow: "none",
+	        }}>
+	          AS
+	        </div>
 
-        <h1 style={{ margin: 0, fontSize: 24, lineHeight: 1.15, color: "#f8fafc" }}>
-          Login Dashboard
-        </h1>
-        <p style={{ margin: "8px 0 20px", color: "rgba(255,255,255,0.45)", fontSize: 13, lineHeight: 1.6 }}>
-          Masuk dulu sebelum buka AgentSpace.
-        </p>
+	        <h1 style={{ margin: 0, fontSize: 25, lineHeight: 1.15, color: "#f8fafc", letterSpacing: 0 }}>
+	          Login Dashboard
+	        </h1>
+	        <p style={{ margin: "8px 0 22px", color: "rgba(255,255,255,0.58)", fontSize: 13, lineHeight: 1.6 }}>
+	          Masuk dulu sebelum buka AgentSpace.
+	        </p>
 
         <label style={{ display: "block", marginBottom: 12 }}>
-          <span style={{ display: "block", fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.46)", marginBottom: 7 }}>
-            Email
-          </span>
+	          <span style={{ display: "block", fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.62)", marginBottom: 7 }}>
+	            Email
+	          </span>
           <input
             value={email}
             onChange={event => setEmail(event.target.value)}
@@ -102,10 +104,10 @@ export default function LoginPage() {
             style={{
               width: "100%",
               padding: "12px 13px",
-              borderRadius: 12,
-              background: "rgba(0,0,0,0.22)",
-              border: "1px solid rgba(255,255,255,0.09)",
-              color: "#f8fafc",
+	              borderRadius: 8,
+	              background: "rgba(255,255,255,0.055)",
+	              border: "1px solid rgba(255,255,255,0.11)",
+	              color: "#f8fafc",
               outline: "none",
               fontSize: 14,
             }}
@@ -113,9 +115,9 @@ export default function LoginPage() {
         </label>
 
         <label style={{ display: "block", marginBottom: 14 }}>
-          <span style={{ display: "block", fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.46)", marginBottom: 7 }}>
-            Password
-          </span>
+	          <span style={{ display: "block", fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.62)", marginBottom: 7 }}>
+	            Password
+	          </span>
           <div style={{ display: "flex", gap: 8 }}>
             <input
               value={password}
@@ -126,9 +128,9 @@ export default function LoginPage() {
                 flex: 1,
                 minWidth: 0,
                 padding: "12px 13px",
-                borderRadius: 12,
-                background: "rgba(0,0,0,0.22)",
-                border: "1px solid rgba(255,255,255,0.09)",
+	                borderRadius: 8,
+	                background: "rgba(255,255,255,0.055)",
+	                border: "1px solid rgba(255,255,255,0.11)",
                 color: "#f8fafc",
                 outline: "none",
                 fontSize: 14,
@@ -139,10 +141,10 @@ export default function LoginPage() {
               onClick={() => setShowPassword(current => !current)}
               style={{
                 width: 50,
-                borderRadius: 12,
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "rgba(255,255,255,0.62)",
+	                borderRadius: 8,
+	                background: "rgba(255,255,255,0.07)",
+	                border: "1px solid rgba(255,255,255,0.12)",
+	                color: "rgba(255,255,255,0.70)",
                 cursor: "pointer",
                 fontWeight: 800,
               }}
@@ -156,7 +158,7 @@ export default function LoginPage() {
           <div style={{
             marginBottom: 14,
             padding: "10px 12px",
-            borderRadius: 12,
+	            borderRadius: 8,
             background: "rgba(244,63,94,0.10)",
             border: "1px solid rgba(244,63,94,0.24)",
             color: "#fb7185",
@@ -173,14 +175,14 @@ export default function LoginPage() {
           style={{
             width: "100%",
             padding: "13px 14px",
-            borderRadius: 13,
-            border: "none",
-            background: loading ? "rgba(255,255,255,0.08)" : "linear-gradient(135deg, #22d3ee, #10b981)",
-            color: loading ? "rgba(255,255,255,0.42)" : "#06111f",
+	            borderRadius: 8,
+	            border: "none",
+	            background: loading ? "rgba(255,255,255,0.08)" : "#14b8a6",
+	            color: loading ? "rgba(255,255,255,0.42)" : "#07110f",
             fontSize: 14,
             fontWeight: 900,
             cursor: loading ? "not-allowed" : "pointer",
-            boxShadow: loading ? "none" : "0 0 24px rgba(34,211,238,0.28)",
+	            boxShadow: "none",
           }}
         >
           {loading ? "Masuk..." : "Masuk Dashboard"}
@@ -192,9 +194,9 @@ export default function LoginPage() {
             display: "block",
             marginTop: 12,
             padding: "12px 14px",
-            borderRadius: 13,
-            border: "1px solid rgba(255,255,255,0.08)",
-            background: "rgba(255,255,255,0.04)",
+	            borderRadius: 8,
+	            border: "1px solid rgba(255,255,255,0.11)",
+	            background: "rgba(255,255,255,0.055)",
             color: "rgba(255,255,255,0.76)",
             fontSize: 13,
             fontWeight: 800,

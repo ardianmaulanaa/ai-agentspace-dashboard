@@ -102,6 +102,22 @@ type CleanupResult = {
   deleted?: CleanupCounts;
 };
 
+type AdminUser = {
+  id: string;
+  email: string;
+  displayName: string;
+  role: DashboardUser["role"];
+  createdAt?: string | null;
+  lastSignInAt?: string | null;
+};
+
+type AdminUsersResult = {
+  ok?: boolean;
+  users?: AdminUser[];
+  user?: AdminUser;
+  error?: string;
+};
+
 type AttachedImage = {
   src: string;
   name: string;
@@ -127,10 +143,10 @@ type Profile = {
 type AgentName = "MASBRE" | "MASBRO" | "MASSEH" | "GPT" | "CLAUDE" | "GEMINI" | "QWEN" | "DEEPSEEK" | "GROK";
 
 const ACCENTS: Accent[] = [
-  { from: "#22d3ee", to: "#10b981" },
-  { from: "#a78bfa", to: "#ec4899" },
-  { from: "#f59e0b", to: "#ef4444" },
-  { from: "#34d399", to: "#06b6d4" },
+  { from: "#14b8a6", to: "#f59e0b" },
+  { from: "#6366f1", to: "#ec4899" },
+  { from: "#f97316", to: "#ef4444" },
+  { from: "#22c55e", to: "#0ea5e9" },
 ];
 
 const initialWorkspaces: Workspace[] = [
@@ -338,7 +354,7 @@ function Avatar({
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: size * 0.3, fontWeight: 800, color: "#fff",
         fontFamily: "'Space Grotesk', sans-serif",
-        boxShadow: `0 0 16px ${accent[0]}44`,
+        boxShadow: "none",
       }}>{initials}</div>
       {(online !== undefined || dnd !== undefined) && (
         <div style={{
@@ -513,6 +529,10 @@ export default function AgentSpaceDashboard() {
   const [configChecking, setConfigChecking] = useState(false);
   const [cleanupRunning, setCleanupRunning] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<CleanupResult | null>(null);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminUsersLoading, setAdminUsersLoading] = useState(false);
+  const [adminUsersError, setAdminUsersError] = useState("");
+  const [updatingRoleUserId, setUpdatingRoleUserId] = useState("");
   const [pendingAgentReplies, setPendingAgentReplies] = useState(0);
   const [currentUser, setCurrentUser] = useState<DashboardUser>({
     username: "ardian",
@@ -596,7 +616,6 @@ export default function AgentSpaceDashboard() {
           setCurrentUser(data.user);
         }
       } catch {
-        // Keep the local fallback user if the session lookup fails.
       }
     }
 
@@ -842,6 +861,104 @@ export default function AgentSpaceDashboard() {
       });
     } finally {
       setConfigChecking(false);
+    }
+  }
+
+  async function loadAdminUsers() {
+    setAdminUsersLoading(true);
+    setAdminUsersError("");
+
+    try {
+      const response = await fetch("/api/admin/users");
+      const data = await response.json() as AdminUsersResult;
+
+      if (!response.ok || !data.ok) {
+        const message = data.error || "Failed to load users.";
+        setAdminUsersError(message);
+        logApiCall({
+          method: "GET",
+          endpoint: "/api/admin/users",
+          status: response.status,
+          label: "Load admin users",
+          payload: { roleRequired: "admin" },
+          response: { ok: false, error: message },
+        });
+        return;
+      }
+
+      setAdminUsers(data.users || []);
+      logApiCall({
+        method: "GET",
+        endpoint: "/api/admin/users",
+        status: response.status,
+        label: "Load admin users",
+        payload: { roleRequired: "admin" },
+        response: { users: data.users?.length || 0 },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setAdminUsersError(message);
+      logApiCall({
+        method: "GET",
+        endpoint: "/api/admin/users",
+        status: 500,
+        label: "Load admin users",
+        payload: { roleRequired: "admin" },
+        response: { ok: false, error: message },
+      });
+    } finally {
+      setAdminUsersLoading(false);
+    }
+  }
+
+  async function updateAdminUserRole(userId: string, role: AdminUser["role"]) {
+    setUpdatingRoleUserId(userId);
+    setAdminUsersError("");
+
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, role }),
+      });
+      const data = await response.json() as AdminUsersResult;
+
+      if (!response.ok || !data.ok || !data.user) {
+        const message = data.error || "Failed to update user role.";
+        setAdminUsersError(message);
+        logApiCall({
+          method: "PATCH",
+          endpoint: "/api/admin/users",
+          status: response.status,
+          label: "Update user role",
+          payload: { userId, role },
+          response: { ok: false, error: message },
+        });
+        return;
+      }
+
+      setAdminUsers(current => current.map(user => user.id === userId ? data.user as AdminUser : user));
+      logApiCall({
+        method: "PATCH",
+        endpoint: "/api/admin/users",
+        status: response.status,
+        label: "Update user role",
+        payload: { userId, role },
+        response: { user: data.user.email, role: data.user.role },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setAdminUsersError(message);
+      logApiCall({
+        method: "PATCH",
+        endpoint: "/api/admin/users",
+        status: 500,
+        label: "Update user role",
+        payload: { userId, role },
+        response: { ok: false, error: message },
+      });
+    } finally {
+      setUpdatingRoleUserId("");
     }
   }
 
@@ -1751,28 +1868,23 @@ export default function AgentSpaceDashboard() {
 
   return (
     <div className={`agentspace-shell theme-${themeMode}`} style={{
-      display: "flex", width: "100vw", height: "100vh", background: "var(--bg-app)",
+	      display: "flex", width: "100vw", height: "100dvh", background: "var(--bg-app)",
       color: "var(--text-main)", fontFamily: "'Space Grotesk', sans-serif",
       overflow: "hidden", position: "relative",
       transition: "background 0.22s ease, color 0.22s ease",
       minWidth: 0,
     }}>
-      {/* Ambient background glow */}
-      <div style={{
-        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
-        background: `radial-gradient(circle at 12% 8%, ${accent.from}${isLightTheme ? "16" : "26"} 0, transparent 34%),
-                     radial-gradient(circle at 86% 12%, ${accent.to}${isLightTheme ? "12" : "20"} 0, transparent 30%),
-                     linear-gradient(135deg, transparent 0%, rgba(255,255,255,${isLightTheme ? "0.26" : "0.03"}) 42%, transparent 72%)`,
-      }} />
-      <div style={{
-        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
-        opacity: isLightTheme ? 0.45 : 0.28,
-        backgroundImage: "linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)",
-        backgroundSize: "44px 44px",
-        maskImage: "linear-gradient(to bottom, black, transparent 78%)",
-      }} />
-
-      {/* Workspace rail */}
+		      <div style={{
+		        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+		        background: "transparent",
+		      }} />
+	      <div style={{
+	        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+	        opacity: isLightTheme ? 0.34 : 0.20,
+	        backgroundImage: "linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)",
+	        backgroundSize: "40px 40px",
+	        maskImage: "linear-gradient(to bottom, black, transparent 78%)",
+	      }} />
       <div style={{
         width: isMobile ? 58 : 72, flexShrink: 0, background: "var(--bg-rail)",
         borderRight: "1px solid var(--border-subtle)",
@@ -1781,12 +1893,11 @@ export default function AgentSpaceDashboard() {
         boxShadow: "var(--shadow-panel)",
         backdropFilter: "blur(24px)",
       }}>
-        {/* Logo */}
         <div style={{
           width: isMobile ? 40 : 46, height: isMobile ? 40 : 46, borderRadius: 15, marginBottom: 6,
           background: `linear-gradient(135deg, ${accent.from}, ${accent.to})`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: `0 18px 42px ${accent.from}38, 0 0 0 1px rgba(255,255,255,0.20) inset`,
+          boxShadow: "none",
           cursor: "pointer", transition: "transform 0.2s",
         }}
           onMouseEnter={e => e.currentTarget.style.transform = "scale(1.08)"}
@@ -1815,7 +1926,7 @@ export default function AgentSpaceDashboard() {
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontSize: 13, fontWeight: 800, cursor: "pointer",
                 transition: "all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                boxShadow: isActive ? `0 0 20px ${wAccent.from}55` : "none",
+                boxShadow: "none",
               }}
                 onMouseEnter={e => { if (!isActive) { e.currentTarget.style.borderRadius = "14px"; e.currentTarget.style.background = "var(--bg-btn-ghost-hover)"; }}}
                 onMouseLeave={e => { if (!isActive) { e.currentTarget.style.borderRadius = "20px"; e.currentTarget.style.background = "var(--bg-btn-ghost)"; }}}
@@ -1849,8 +1960,6 @@ export default function AgentSpaceDashboard() {
             </div>
           );
         })}
-
-        {/* Add workspace */}
         <button
           title="Add workspace"
           onClick={() => setShowWorkspaceForm(true)}
@@ -1872,7 +1981,7 @@ export default function AgentSpaceDashboard() {
             padding: 12, borderRadius: 14,
             background: "var(--bg-popover)",
             border: `1px solid ${accent.from}36`,
-            boxShadow: `0 20px 48px rgba(0,0,0,0.25), 0 0 24px ${accent.from}18`,
+            boxShadow: "0 18px 36px rgba(0,0,0,0.22)",
             backdropFilter: "blur(16px)",
           }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: "var(--text-main)", marginBottom: 8 }}>
@@ -1941,8 +2050,6 @@ export default function AgentSpaceDashboard() {
           </button>
         </div>
       </div>
-
-      {/* Channel sidebar */}
       <div style={{
         width: sidebarCollapsed ? 0 : isMobile ? "min(286px, calc(100vw - 58px))" : 258,
         flexShrink: 0, overflow: "hidden",
@@ -1959,7 +2066,6 @@ export default function AgentSpaceDashboard() {
         boxShadow: isMobile && !sidebarCollapsed ? "24px 0 60px rgba(0,0,0,0.25)" : "none",
         backdropFilter: "blur(24px)",
       }}>
-        {/* Workspace header */}
         <div style={{ padding: "18px 16px 14px", borderBottom: "1px solid var(--border-subtle)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1986,7 +2092,6 @@ export default function AgentSpaceDashboard() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
             </button>
           </div>
-          {/* Search */}
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
             background: "var(--bg-input)", border: "1px solid var(--border-subtle)",
@@ -2036,8 +2141,6 @@ export default function AgentSpaceDashboard() {
             )}
           </div>
         </div>
-
-        {/* Categories */}
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 8px" }}>
           {filteredCategories.map(cat => (
             <div key={cat.name} style={{ marginBottom: 8 }}>
@@ -2078,7 +2181,7 @@ export default function AgentSpaceDashboard() {
                       {ch.type === "forum" ? "◈" : ch.type === "voice" ? "◆" : "#"}
                     </span>
                     {ch.name}
-                    {isActive && <div style={{ marginLeft: "auto", width: 6, height: 6, borderRadius: "50%", background: accent.from, boxShadow: `0 0 8px ${accent.from}` }} />}
+                    {isActive && <div style={{ marginLeft: "auto", width: 6, height: 6, borderRadius: "50%", background: accent.from, boxShadow: "none" }} />}
                   </button>
                 );
               })}
@@ -2187,8 +2290,6 @@ export default function AgentSpaceDashboard() {
             </form>
           )}
         </div>
-
-        {/* Bottom actions */}
         <div style={{ padding: "12px 8px", borderTop: "1px solid var(--border-subtle)", display: "flex", gap: 6 }}>
           {[
             { label: "+ Category", action: () => { setShowCategoryForm(true); setShowChannelForm(false); } },
@@ -2201,7 +2302,7 @@ export default function AgentSpaceDashboard() {
               color: i === 1 ? "white" : "var(--text-muted)",
               fontFamily: "'Space Grotesk', sans-serif",
               fontSize: 11, fontWeight: 700, cursor: "pointer",
-              transition: "all 0.2s", boxShadow: i === 1 ? `0 0 16px ${accent.from}44` : "none",
+              transition: "all 0.2s", boxShadow: "none",
             }}
               onMouseEnter={e => { if (i === 0) e.currentTarget.style.background = "var(--bg-btn-ghost-hover)"; }}
               onMouseLeave={e => { if (i === 0) e.currentTarget.style.background = "var(--bg-btn-ghost)"; }}
@@ -2209,10 +2310,7 @@ export default function AgentSpaceDashboard() {
           ))}
         </div>
       </div>
-
-      {/* Main content */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, zIndex: 8, position: "relative" }}>
-        {/* Header */}
 	        <div style={{
 	          minHeight: isMobile ? 104 : 68, flexShrink: 0, display: "flex", alignItems: "center",
 	          flexWrap: isMobile ? "wrap" : "nowrap",
@@ -2407,8 +2505,6 @@ export default function AgentSpaceDashboard() {
             </button>
           </div>
         )}
-
-        {/* Chat / Forum area */}
         {isVoice ? (
           <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "16px 14px" : "28px", display: "grid", placeItems: "center" }}>
             <div style={{
@@ -2417,7 +2513,7 @@ export default function AgentSpaceDashboard() {
               padding: isMobile ? 18 : 28,
               background: `linear-gradient(135deg, ${accent.from}${isLightTheme ? "08" : "16"}, var(--bg-btn-ghost))`,
               border: `1px solid ${accent.from}30`,
-              boxShadow: `0 24px 70px rgba(0,0,0,0.15), 0 0 32px ${accent.from}16`,
+              boxShadow: "0 18px 38px rgba(0,0,0,0.18)",
             }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 22 }}>
                 <div>
@@ -2429,7 +2525,7 @@ export default function AgentSpaceDashboard() {
                   width: 64, height: 64, borderRadius: 20,
                   background: `linear-gradient(135deg, ${accent.from}, ${accent.to})`,
                   color: "white", display: "grid", placeItems: "center",
-                  boxShadow: `0 0 30px ${accent.from}4f`,
+                  boxShadow: "none",
                 }}>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
                     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
@@ -2555,7 +2651,6 @@ export default function AgentSpaceDashboard() {
               </div>
             ) : (
               <>
-            {/* Forum hero */}
             <div style={{
               borderRadius: 20, padding: "24px 28px", marginBottom: 20,
               background: `linear-gradient(135deg, ${accent.from}${isLightTheme ? "08" : "18"}, ${accent.to}${isLightTheme ? "04" : "10"}, var(--bg-rail))`,
@@ -2574,7 +2669,7 @@ export default function AgentSpaceDashboard() {
                 background: `linear-gradient(135deg, ${accent.from}, ${accent.to})`,
                 border: "none", color: "white", fontFamily: "'Space Grotesk', sans-serif",
                 fontSize: 13, fontWeight: 700, cursor: "pointer",
-                boxShadow: `0 0 20px ${accent.from}44`,
+                boxShadow: "none",
                 display: "flex", alignItems: "center", gap: 8, transition: "transform 0.2s",
               }}
                 onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
@@ -2590,7 +2685,7 @@ export default function AgentSpaceDashboard() {
                 borderRadius: 18, padding: "18px 20px", marginBottom: 16,
                 background: "var(--bg-popover)",
                 border: `1px solid ${accent.from}30`,
-                boxShadow: `0 0 24px ${accent.from}12`,
+                boxShadow: "none",
               }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: "var(--text-main)", marginBottom: 12 }}>
                   Tambah post baru
@@ -2678,7 +2773,7 @@ export default function AgentSpaceDashboard() {
                       fontWeight: 800,
                       cursor: newPostTitle.trim() && newPostBody.trim() ? "pointer" : "not-allowed",
                       fontFamily: "'Space Grotesk', sans-serif", fontSize: 12,
-                      boxShadow: newPostTitle.trim() && newPostBody.trim() ? `0 0 18px ${accent.from}35` : "none",
+                      boxShadow: "none",
                     }}
                   >
                     Post
@@ -2686,8 +2781,6 @@ export default function AgentSpaceDashboard() {
                 </div>
               </form>
             )}
-
-            {/* Post cards */}
             {forumPosts.map(post => (
               <div
                 key={post.id}
@@ -2722,7 +2815,6 @@ export default function AgentSpaceDashboard() {
         ) : (
           <>
             <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "16px 14px" : "24px 28px", display: "flex", flexDirection: "column", gap: 0 }}>
-              {/* AI persona banner */}
               <div style={{
                 borderRadius: 22,
                 minHeight: isMobile ? 64 : 72,
@@ -2759,8 +2851,6 @@ export default function AgentSpaceDashboard() {
                   </div>
                 </div>
               </div>
-
-              {/* Messages */}
               <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
                 {messages.map((msg, i) => (
                   <div
@@ -2828,7 +2918,7 @@ export default function AgentSpaceDashboard() {
                         : msg.ai
                           ? "1px solid var(--border-subtle)"
                           : `1px solid ${accent.from}33`,
-                      boxShadow: highlightedMessageIndex === i ? `0 0 0 1px ${accent.from}33, 0 20px 46px ${accent.from}20` : "var(--shadow-message)",
+                      boxShadow: highlightedMessageIndex === i ? "0 14px 34px rgba(0,0,0,0.22)" : "var(--shadow-message)",
                       transition: "border-color 0.2s, box-shadow 0.2s, transform 0.2s",
                       backdropFilter: "blur(18px)",
                     }}>
@@ -2951,8 +3041,6 @@ export default function AgentSpaceDashboard() {
                 <div ref={msgEndRef} />
               </div>
             </div>
-
-            {/* Message input */}
             <div style={{
               padding: isMobile ? "10px 12px 14px" : "14px 24px 20px",
               borderTop: "1px solid var(--border-subtle)",
@@ -2978,7 +3066,7 @@ export default function AgentSpaceDashboard() {
               }}
                 onFocus={e => {
                   e.currentTarget.style.borderColor = `${accent.from}66`;
-                  e.currentTarget.style.boxShadow = `0 18px 46px rgba(0,0,0,0.18), 0 0 0 4px ${accent.from}12`;
+	                  e.currentTarget.style.boxShadow = "var(--shadow-composer)";
                 }}
                 onBlur={e => {
                   e.currentTarget.style.borderColor = "var(--border-subtle)";
@@ -3116,8 +3204,6 @@ export default function AgentSpaceDashboard() {
           }}
         />
       )}
-
-      {/* Right panel */}
       {(!isMobile || rightPanelOpen) && (
       <div style={{
         width: isMobile ? "min(330px, calc(100vw - 58px))" : 286,
@@ -3134,7 +3220,6 @@ export default function AgentSpaceDashboard() {
         boxShadow: isMobile ? "-24px 0 70px rgba(0,0,0,0.35)" : "none",
         backdropFilter: "blur(24px)",
       }}>
-        {/* Tabs */}
         <div style={{
           display: "flex", gap: 0, padding: "16px 14px 0",
           borderBottom: "1px solid var(--border-subtle)",
@@ -3171,7 +3256,6 @@ export default function AgentSpaceDashboard() {
 
         {rightPanel === "profiles" ? (
           <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: isMobile ? "14px" : "16px" }}>
-            {/* Stats row */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginBottom: 16 }}>
               {[["Online", String(visibleProfiles.filter(profile => profile.status === "online").length)], ["AI", String(visibleProfiles.filter(profile => profile.app).length)], ["Users", String(visibleProfiles.filter(profile => !profile.app).length)]].map(([label, val]) => (
                 <div key={label} style={{
@@ -3419,7 +3503,6 @@ export default function AgentSpaceDashboard() {
           </div>
         ) : (
           <div style={{ flex: 1, overflowY: "auto", padding: "14px" }}>
-            {/* Config header card */}
             <div style={{
               borderRadius: 14, padding: "16px", marginBottom: 14,
               background: `linear-gradient(135deg, ${accent.from}${isLightTheme ? "10" : "18"}, ${accent.to}${isLightTheme ? "05" : "10"})`,
@@ -3430,7 +3513,7 @@ export default function AgentSpaceDashboard() {
                   width: 38, height: 38, borderRadius: 10, flexShrink: 0,
                   background: `linear-gradient(135deg, ${accent.from}, ${accent.to})`,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: `0 0 14px ${accent.from}55`,
+                  boxShadow: "none",
                 }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="4" width="18" height="14" rx="3" />
@@ -3566,14 +3649,105 @@ export default function AgentSpaceDashboard() {
                       ))}
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
+	                </div>
+	              )}
+	            </div>
 
-            <div style={{
-              marginBottom: 14, padding: 12, borderRadius: 14,
-              background: "rgba(244,63,94,0.08)",
-              border: "1px solid rgba(244,63,94,0.24)",
+	            <div style={{
+	              marginBottom: 14, padding: 12, borderRadius: 14,
+	              background: "rgba(59,130,246,0.08)",
+	              border: "1px solid rgba(59,130,246,0.22)",
+	            }}>
+	              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 9 }}>
+	                <div>
+	                  <div style={{ fontSize: 12, fontWeight: 900, color: "var(--text-main)" }}>User Roles</div>
+	                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3 }}>
+	                    Kelola role Supabase Auth untuk RBAC dashboard.
+	                  </div>
+	                </div>
+	                <NeonBadge color="#60a5fa">admin</NeonBadge>
+	              </div>
+	              <button
+	                type="button"
+	                onClick={() => void loadAdminUsers()}
+	                disabled={adminUsersLoading}
+	                style={{
+	                  width: "100%", padding: "9px 10px", borderRadius: 10,
+	                  background: adminUsersLoading ? "var(--bg-btn-ghost)" : "var(--bg-input)",
+	                  border: "1px solid var(--border-subtle)",
+	                  color: adminUsersLoading ? "var(--text-muted)" : "var(--text-main)",
+	                  fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 900,
+	                  cursor: adminUsersLoading ? "not-allowed" : "pointer",
+	                }}
+	              >
+	                {adminUsersLoading ? "Loading users..." : "Load Users"}
+	              </button>
+	              {adminUsersError && (
+	                <div style={{
+	                  marginTop: 9, padding: "8px 9px", borderRadius: 10,
+	                  background: "rgba(244,63,94,0.12)",
+	                  border: "1px solid rgba(244,63,94,0.24)",
+	                  color: "#fb7185", fontSize: 11, lineHeight: 1.45,
+	                }}>
+	                  {adminUsersError}
+	                </div>
+	              )}
+	              {adminUsers.length > 0 && (
+	                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+	                  {adminUsers.map(user => {
+	                    const isCurrentUser = currentUser.username.toLowerCase() === user.email.toLowerCase();
+	                    return (
+	                      <div key={user.id} style={{
+	                        padding: "9px 10px", borderRadius: 11,
+	                        background: "var(--bg-input)",
+	                        border: "1px solid var(--border-subtle)",
+	                      }}>
+	                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 9 }}>
+	                          <div style={{ minWidth: 0 }}>
+	                            <div style={{
+	                              fontSize: 12, fontWeight: 900, color: "var(--text-main)",
+	                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+	                            }}>
+	                              {user.displayName}
+	                            </div>
+	                            <div style={{
+	                              fontSize: 10, color: "var(--text-muted)", marginTop: 3,
+	                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+	                            }}>
+	                              {user.email || "no email"}{isCurrentUser ? " - current session" : ""}
+	                            </div>
+	                          </div>
+	                          <select
+	                            value={user.role}
+	                            disabled={updatingRoleUserId === user.id || (isCurrentUser && user.role === "admin")}
+	                            onChange={event => void updateAdminUserRole(user.id, event.target.value as AdminUser["role"])}
+	                            style={{
+	                              flexShrink: 0,
+	                              padding: "7px 8px", borderRadius: 9,
+	                              background: "var(--bg-btn-ghost)",
+	                              border: "1px solid var(--border-subtle)",
+	                              color: "var(--text-main)",
+	                              fontFamily: "'Space Grotesk', sans-serif",
+	                              fontSize: 11, fontWeight: 900,
+	                              cursor: updatingRoleUserId === user.id ? "wait" : "pointer",
+	                            }}
+	                          >
+	                            <option value="member">member</option>
+	                            <option value="owner">owner</option>
+	                            <option value="admin">admin</option>
+	                          </select>
+	                        </div>
+	                      </div>
+	                    );
+	                  })}
+	                </div>
+	              )}
+	            </div>
+
+	            <div style={{
+	              marginBottom: 14, padding: 12, borderRadius: 14,
+	              background: "rgba(244,63,94,0.08)",
+	              border: "1px solid rgba(244,63,94,0.24)",
             }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 9 }}>
                 <div>
@@ -3643,7 +3817,7 @@ export default function AgentSpaceDashboard() {
                     color: cleanupRunning ? "var(--text-muted)" : "#fff",
                     fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 900,
                     cursor: cleanupRunning ? "not-allowed" : "pointer",
-                    boxShadow: cleanupRunning ? "none" : "0 0 16px rgba(244,63,94,0.28)",
+                    boxShadow: "none",
                   }}
                 >
                   Run Cleanup
@@ -3785,7 +3959,7 @@ export default function AgentSpaceDashboard() {
                         background: on ? `linear-gradient(90deg, ${accent.from}, ${accent.to})` : "var(--border-subtle)",
                         display: "flex", alignItems: "center",
                         justifyContent: on ? "flex-end" : "flex-start",
-                        transition: "all 0.2s", boxShadow: on ? `0 0 10px ${accent.from}55` : "none",
+                        transition: "all 0.2s", boxShadow: "none",
                       }}>
                         <div style={{ width: 15, height: 15, borderRadius: "50%", background: "#fff" }} />
                       </div>
@@ -3801,11 +3975,11 @@ export default function AgentSpaceDashboard() {
               border: "none", color: "white",
               fontFamily: "'Space Grotesk', sans-serif",
               fontSize: 13, fontWeight: 700, cursor: "pointer",
-              boxShadow: `0 0 24px ${accent.from}44`,
+              boxShadow: "none",
               transition: "transform 0.2s, box-shadow 0.2s",
             }}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 4px 28px ${accent.from}66`; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = `0 0 24px ${accent.from}44`; }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "none"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
             >Save Configuration</button>
           </div>
         )}
@@ -3939,45 +4113,45 @@ export default function AgentSpaceDashboard() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
 
-        :root {
-          --bg-app: linear-gradient(135deg, #07080d 0%, #0d1117 48%, #080a10 100%);
-          --bg-rail: rgba(8, 10, 16, 0.84);
-          --bg-sidebar: rgba(12, 14, 20, 0.78);
-          --bg-header: rgba(10, 12, 18, 0.68);
-          --bg-input: rgba(255, 255, 255, 0.055);
-          --bg-popover: rgba(14, 16, 22, 0.98);
-          --bg-btn-ghost: rgba(255, 255, 255, 0.065);
-          --bg-btn-ghost-hover: rgba(255, 255, 255, 0.11);
-          --surface: rgba(255, 255, 255, 0.075);
-          --surface-strong: rgba(255, 255, 255, 0.095);
-          --composer-bg: linear-gradient(to top, rgba(7, 8, 13, 0.92), rgba(7, 8, 13, 0.62));
-          --text-main: #f1f5f9;
-          --text-muted: rgba(241, 245, 249, 0.58);
-          --border-subtle: rgba(255, 255, 255, 0.105);
-          --grid-line: rgba(255, 255, 255, 0.055);
-          --shadow-panel: 18px 0 50px rgba(0, 0, 0, 0.24);
-          --shadow-card: 0 24px 70px rgba(0, 0, 0, 0.22), 0 1px 0 rgba(255,255,255,0.08) inset;
-          --shadow-soft: 0 12px 34px rgba(0,0,0,0.14);
-          --shadow-message: 0 14px 34px rgba(0,0,0,0.16);
-          --shadow-composer: 0 20px 54px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.08) inset;
-          --shadow-inset: 0 1px 0 rgba(255,255,255,0.06) inset;
-        }
+	        :root {
+	          --bg-app: #111318;
+	          --bg-rail: rgba(15, 17, 21, 0.92);
+	          --bg-sidebar: rgba(20, 22, 27, 0.88);
+	          --bg-header: rgba(18, 20, 25, 0.82);
+	          --bg-input: rgba(255, 255, 255, 0.06);
+	          --bg-popover: rgba(22, 24, 29, 0.98);
+	          --bg-btn-ghost: rgba(255, 255, 255, 0.07);
+	          --bg-btn-ghost-hover: rgba(255, 255, 255, 0.12);
+	          --surface: rgba(255, 255, 255, 0.08);
+	          --surface-strong: rgba(255, 255, 255, 0.11);
+	          --composer-bg: linear-gradient(to top, rgba(13, 15, 18, 0.95), rgba(13, 15, 18, 0.70));
+	          --text-main: #f1f5f9;
+	          --text-muted: rgba(241, 245, 249, 0.64);
+	          --border-subtle: rgba(255, 255, 255, 0.12);
+	          --grid-line: rgba(255, 255, 255, 0.045);
+	          --shadow-panel: 12px 0 34px rgba(0, 0, 0, 0.22);
+	          --shadow-card: 0 18px 48px rgba(0, 0, 0, 0.20), 0 1px 0 rgba(255,255,255,0.08) inset;
+	          --shadow-soft: 0 10px 26px rgba(0,0,0,0.14);
+	          --shadow-message: 0 10px 24px rgba(0,0,0,0.16);
+	          --shadow-composer: 0 16px 38px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.08) inset;
+	          --shadow-inset: 0 1px 0 rgba(255,255,255,0.06) inset;
+	        }
 
-        .theme-light {
-          --bg-app: linear-gradient(135deg, #f8fafc 0%, #eef7fb 48%, #f7fbff 100%);
-          --bg-rail: rgba(255, 255, 255, 0.78);
-          --bg-sidebar: rgba(255, 255, 255, 0.78);
-          --bg-header: rgba(255, 255, 255, 0.72);
-          --bg-input: rgba(15, 23, 42, 0.055);
-          --bg-popover: #ffffff;
-          --bg-btn-ghost: rgba(15, 23, 42, 0.045);
+	        .theme-light {
+	          --bg-app: #f7f8fa;
+	          --bg-rail: rgba(255, 255, 255, 0.86);
+	          --bg-sidebar: rgba(255, 255, 255, 0.86);
+	          --bg-header: rgba(255, 255, 255, 0.82);
+	          --bg-input: rgba(15, 23, 42, 0.055);
+	          --bg-popover: #ffffff;
+	          --bg-btn-ghost: rgba(15, 23, 42, 0.045);
           --bg-btn-ghost-hover: rgba(15, 23, 42, 0.075);
           --surface: rgba(255, 255, 255, 0.78);
           --surface-strong: rgba(255, 255, 255, 0.92);
-          --composer-bg: linear-gradient(to top, rgba(248,250,252,0.94), rgba(248,250,252,0.66));
-          --text-main: #162033;
-          --text-muted: #64748b;
-          --border-subtle: rgba(15, 23, 42, 0.10);
+	          --composer-bg: linear-gradient(to top, rgba(247,248,250,0.96), rgba(247,248,250,0.74));
+	          --text-main: #162033;
+	          --text-muted: #64748b;
+	          --border-subtle: rgba(15, 23, 42, 0.10);
           --grid-line: rgba(15, 23, 42, 0.055);
           --shadow-panel: 14px 0 34px rgba(15, 23, 42, 0.07);
           --shadow-card: 0 24px 60px rgba(15, 23, 42, 0.10), 0 1px 0 rgba(255,255,255,0.9) inset;
