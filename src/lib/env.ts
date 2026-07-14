@@ -16,6 +16,17 @@ type AgentBridgeStatus = {
 };
 
 export type ConfigStatus = {
+  auth: {
+    configured: boolean;
+    userStore: string;
+    userStoreSupabase: boolean;
+    usernameConfigured: boolean;
+    passwordHashConfigured: boolean;
+    passwordFallbackConfigured: boolean;
+    accessTokenConfigured: boolean;
+    refreshTokenConfigured: boolean;
+    role: string;
+  };
   supabase: {
     configured: boolean;
     urlConfigured: boolean;
@@ -69,6 +80,13 @@ export function getConfigStatus(): ConfigStatus {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const dashboardUsername = process.env.DASHBOARD_USERNAME;
+  const authUserStore = process.env.AUTH_USER_STORE || "supabase-auth";
+  const dashboardPasswordHash = process.env.DASHBOARD_PASSWORD_HASH;
+  const dashboardPassword = process.env.DASHBOARD_PASSWORD;
+  const dashboardAccessToken = process.env.DASHBOARD_ACCESS_TOKEN;
+  const dashboardRefreshToken = process.env.DASHBOARD_REFRESH_TOKEN;
+  const dashboardRole = process.env.DASHBOARD_ROLE || "admin";
   const openClawCliPath = process.env.OPENCLAW_CLI_PATH || "openclaw";
   const openClawProfile = process.env.OPENCLAW_PROFILE || "masbre";
   const openClawAgentId = process.env.OPENCLAW_AGENT_ID || "main";
@@ -194,6 +212,23 @@ export function getConfigStatus(): ConfigStatus {
   ];
 
   return {
+    auth: {
+      configured:
+        authUserStore === "supabase-auth" &&
+        hasValue(supabaseUrl) &&
+        hasValue(supabaseAnonKey) &&
+        hasValue(supabaseServiceRoleKey) &&
+        hasValue(dashboardAccessToken) &&
+        hasValue(dashboardRefreshToken),
+      userStore: authUserStore,
+      userStoreSupabase: authUserStore === "supabase-auth",
+      usernameConfigured: hasValue(dashboardUsername),
+      passwordHashConfigured: hasValue(dashboardPasswordHash),
+      passwordFallbackConfigured: hasValue(dashboardPassword),
+      accessTokenConfigured: hasValue(dashboardAccessToken),
+      refreshTokenConfigured: hasValue(dashboardRefreshToken),
+      role: dashboardRole,
+    },
     supabase: {
       configured: hasValue(supabaseUrl) && hasValue(supabaseAnonKey),
       urlConfigured: hasValue(supabaseUrl),

@@ -395,10 +395,14 @@ function saveActiveChannel(channelName: string) {
 const ENV_TEMPLATE = `NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+AUTH_USER_STORE=supabase-auth
 DASHBOARD_USERNAME=
 DASHBOARD_DISPLAY_NAME=
+DASHBOARD_ROLE=admin
+DASHBOARD_PASSWORD_HASH=
 DASHBOARD_PASSWORD=
-DASHBOARD_SESSION_TOKEN=
+DASHBOARD_ACCESS_TOKEN=
+DASHBOARD_REFRESH_TOKEN=
 OPENCLAW_CLI_PATH=openclaw
 OPENCLAW_PROFILE=masbre
 OPENCLAW_AGENT_ID=main
@@ -514,6 +518,7 @@ export default function AgentSpaceDashboard() {
   const [currentUser, setCurrentUser] = useState<DashboardUser>({
     username: "ardian",
     displayName: "Ardian",
+    role: "admin",
   });
   const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
   const channelSearchRef = useRef<HTMLInputElement | null>(null);
@@ -3449,7 +3454,7 @@ export default function AgentSpaceDashboard() {
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 900, color: "var(--text-main)" }}>Environment Status</div>
                   <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3 }}>
-                    Paste env asli di .env.local, bukan di browser.
+                    Paste env asli di .env, bukan di browser.
                   </div>
                 </div>
                 <NeonBadge color={configStatus?.supabase.configured ? "#22c55e" : "#f59e0b"}>
@@ -3495,6 +3500,34 @@ export default function AgentSpaceDashboard() {
                     wordBreak: "break-word",
                   }}>
                     Project host: {configStatus.supabase.projectHost || "not connected"}
+                  </div>
+                  <div style={{
+                    marginTop: 2, padding: "8px 9px", borderRadius: 10,
+                    background: configStatus.auth.configured ? "rgba(34,197,94,0.08)" : "var(--bg-input)",
+                    border: configStatus.auth.configured ? "1px solid rgba(34,197,94,0.20)" : "1px solid var(--border-subtle)",
+                    color: "var(--text-muted)", fontSize: 11,
+                  }}>
+                    Auth store:{" "}
+                    <span style={{
+                      color: configStatus.auth.configured ? "#22c55e" : "#f59e0b",
+                      fontWeight: 900,
+                    }}>
+                      {configStatus.auth.configured ? configStatus.auth.userStore : "needs setup"}
+                    </span>
+                    <div style={{ marginTop: 7, display: "grid", gap: 5 }}>
+                      {[
+                        ["Access token", configStatus.auth.accessTokenConfigured],
+                        ["Refresh token", configStatus.auth.refreshTokenConfigured],
+                        ["Supabase Auth", configStatus.auth.userStoreSupabase],
+                      ].map(([label, ready]) => (
+                        <div key={label as string} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                          <span>{label}</span>
+                          <span style={{ color: ready ? "#22c55e" : "#f59e0b", fontWeight: 900 }}>
+                            {ready ? "ready" : "empty"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div style={{
                     marginTop: 2, padding: "8px 9px", borderRadius: 10,

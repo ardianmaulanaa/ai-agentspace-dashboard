@@ -1,13 +1,23 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { DASHBOARD_SESSION_COOKIE, isDashboardSessionToken } from "@/lib/auth";
+
+const DASHBOARD_ACCESS_COOKIE = "agentspace_access";
+const DASHBOARD_SESSION_COOKIE = "agentspace_session";
+
+function isDashboardSessionToken(token: string | undefined) {
+  const expectedToken = process.env.DASHBOARD_ACCESS_TOKEN?.trim() || "";
+
+  return Boolean(token && expectedToken && token === expectedToken);
+}
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const sessionToken = request.cookies.get(DASHBOARD_SESSION_COOKIE)?.value;
+  const sessionToken =
+    request.cookies.get(DASHBOARD_ACCESS_COOKIE)?.value ||
+    request.cookies.get(DASHBOARD_SESSION_COOKIE)?.value;
   const isLoggedIn = isDashboardSessionToken(sessionToken);
 
-  if ((pathname === "/" || pathname === "/login") && isLoggedIn) {
+  if ((pathname === "/" || pathname === "/login" || pathname === "/register") && isLoggedIn) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -25,5 +35,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/login", "/dashboard"],
+  matcher: ["/", "/login", "/register", "/dashboard"],
 };

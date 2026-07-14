@@ -2,17 +2,11 @@ import { NextResponse } from "next/server";
 import { isDashboardRequestAuthenticated } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { resolveWorkspaceId, slugify } from "@/lib/supabase-records";
+import { enumValue, optionalString, readJsonObject, requiredString, validationError } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
-type ChannelBody = {
-  workspaceId?: unknown;
-  category?: unknown;
-  name?: unknown;
-  type?: unknown;
-};
-
-const channelTypes = new Set(["text", "forum", "voice"]);
+const channelTypes = ["text", "forum", "voice"] as const;
 
 export async function POST(request: Request) {
   if (!isDashboardRequestAuthenticated(request)) {
@@ -31,18 +25,21 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json().catch(() => null) as ChannelBody | null;
-  const workspaceInput = typeof body?.workspaceId === "string" ? body.workspaceId.trim() : "";
-  const categoryName = typeof body?.category === "string" ? body.category.trim() : "";
-  const name = typeof body?.name === "string" ? body.name.trim() : "";
-  const slug = slugify(name);
-  const type = typeof body?.type === "string" && channelTypes.has(body.type) ? body.type : "text";
+  const body = await readJsonObject(request);
 
-  if (!name || !slug) {
-    return NextResponse.json(
-      { ok: false, error: "Channel name is required." },
-      { status: 400 },
-    );
+  if (!body) {
+    return validationError("Request body must be a JSON object.");
+  }
+
+  const nameResult = requiredString(body, "name", "Channel name");
+  const workspaceInput = optionalString(body, "workspaceId");
+  const categoryName = optionalString(body, "category");
+  const name = nameResult.value;
+  const slug = slugify(name);
+  const type = enumValue(optionalString(body, "type"), channelTypes, "text");
+
+  if (nameResult.error || !slug) {
+    return validationError("Channel name is required.");
   }
 
   const workspaceResult = await resolveWorkspaceId(supabase, workspaceInput);

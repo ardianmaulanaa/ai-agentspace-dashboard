@@ -2,13 +2,9 @@ import { NextResponse } from "next/server";
 import { isDashboardRequestAuthenticated } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { resolveWorkspaceId, slugify } from "@/lib/supabase-records";
+import { optionalString, readJsonObject, requiredString, validationError } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
-
-type CategoryBody = {
-  workspaceId?: unknown;
-  name?: unknown;
-};
 
 export async function POST(request: Request) {
   if (!isDashboardRequestAuthenticated(request)) {
@@ -27,16 +23,19 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json().catch(() => null) as CategoryBody | null;
-  const name = typeof body?.name === "string" ? body.name.trim() : "";
-  const workspaceInput = typeof body?.workspaceId === "string" ? body.workspaceId.trim() : "";
+  const body = await readJsonObject(request);
+
+  if (!body) {
+    return validationError("Request body must be a JSON object.");
+  }
+
+  const nameResult = requiredString(body, "name", "Category name");
+  const name = nameResult.value;
+  const workspaceInput = optionalString(body, "workspaceId");
   const slug = slugify(name);
 
-  if (!name || !slug) {
-    return NextResponse.json(
-      { ok: false, error: "Category name is required." },
-      { status: 400 },
-    );
+  if (nameResult.error || !slug) {
+    return validationError("Category name is required.");
   }
 
   const workspaceResult = await resolveWorkspaceId(supabase, workspaceInput);

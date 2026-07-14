@@ -1,19 +1,10 @@
 import { NextResponse } from "next/server";
-import { getDashboardUser, isDashboardRequestAuthenticated } from "@/lib/auth";
+import { getDashboardRequestUser, isDashboardRequestAuthenticated } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { resolveChannelId, resolveWorkspaceId } from "@/lib/supabase-records";
+import { optionalString, readJsonObject, requiredString, validationError } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
-
-type MessageBody = {
-  workspaceId?: unknown;
-  channelId?: unknown;
-  content?: unknown;
-  attachmentData?: unknown;
-  attachmentName?: unknown;
-  attachmentMime?: unknown;
-  replyTo?: unknown;
-};
 
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -116,28 +107,31 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json().catch(() => null) as MessageBody | null;
+  const body = await readJsonObject(request);
 
-  if (!body || typeof body.content !== "string") {
-    return NextResponse.json(
-      { ok: false, error: "Message content is required." },
-      { status: 400 },
-    );
+  if (!body) {
+    return validationError("Request body must be a JSON object.");
   }
 
-  const content = body.content.trim();
-  const workspaceInput = typeof body.workspaceId === "string" ? body.workspaceId.trim() : "";
-  const channelInput = typeof body.channelId === "string" ? body.channelId.trim() : "";
-  const attachmentData = typeof body.attachmentData === "string" ? body.attachmentData.trim() : "";
-  const attachmentName = typeof body.attachmentName === "string" ? body.attachmentName.trim() : "";
-  const attachmentMime = typeof body.attachmentMime === "string" ? body.attachmentMime.trim() : "";
-  const replyTo = typeof body.replyTo === "string" ? body.replyTo.trim() : "";
+  const contentResult = requiredString(body, "content", "Message content");
+  const content = contentResult.value;
+  const workspaceInput = optionalString(body, "workspaceId");
+  const channelInput = optionalString(body, "channelId");
+  const attachmentData = optionalString(body, "attachmentData");
+  const attachmentName = optionalString(body, "attachmentName");
+  const attachmentMime = optionalString(body, "attachmentMime");
+  const replyTo = optionalString(body, "replyTo");
 
-  if (!content && !attachmentName) {
-    return NextResponse.json(
-      { ok: false, error: "Message cannot be empty." },
-      { status: 400 },
-    );
+  if (contentResult.error && !attachmentName) {
+    return validationError("Message content or attachment is required.");
+  }
+
+  if (attachmentData && !attachmentData.startsWith("data:")) {
+    return validationError("Attachment data must be a data URL.");
+  }
+
+  if (attachmentMime && !attachmentMime.startsWith("image/")) {
+    return validationError("Only image attachments are supported.");
   }
 
   const supabase = createServerSupabaseClient();
@@ -173,7 +167,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const user = getDashboardUser();
+  const user = getDashboardRequestUser(request);
+
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized." },
+      { status: 401 },
+    );
+  }
+
   const insertResult = await supabase
     .from("messages")
     .insert({

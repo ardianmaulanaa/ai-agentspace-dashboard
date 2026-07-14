@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { isDashboardRequestAuthenticated } from "@/lib/auth";
+import { isDashboardRequestAuthorized } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { readJsonObject } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -62,10 +63,10 @@ async function deleteRows(
 }
 
 export async function POST(request: Request) {
-  if (!isDashboardRequestAuthenticated(request)) {
+  if (!isDashboardRequestAuthorized(request, ["admin"])) {
     return NextResponse.json(
-      { ok: false, error: "Unauthorized." },
-      { status: 401 },
+      { ok: false, error: "Forbidden. Admin role is required." },
+      { status: 403 },
     );
   }
 
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json().catch(() => ({})) as CleanupBody;
+  const body = (await readJsonObject(request) || {}) as CleanupBody;
   const dryRun = body.dryRun !== false;
   const confirm = typeof body.confirm === "string" ? body.confirm.trim() : "";
   const before = await countRows(supabase);

@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { getDashboardUser, isDashboardRequestAuthenticated } from "@/lib/auth";
+import { getDashboardRequestUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  if (!isDashboardRequestAuthenticated(request)) {
+  const user = getDashboardRequestUser(request);
+
+  if (!user) {
     return NextResponse.json(
       { ok: false, error: "Unauthorized." },
       { status: 401 },
@@ -13,6 +15,6 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    user: getDashboardUser(),
+    user,
   });
 }

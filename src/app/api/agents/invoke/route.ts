@@ -1,21 +1,15 @@
 import { NextResponse } from "next/server";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { getDashboardUser, isDashboardRequestAuthenticated } from "@/lib/auth";
+import { getDashboardRequestUser, isDashboardRequestAuthenticated } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { resolveChannelId, resolveWorkspaceId } from "@/lib/supabase-records";
+import { optionalString, readJsonObject, requiredString, validationError } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const execFileAsync = promisify(execFile);
-
-type AgentInvokeBody = {
-  message?: unknown;
-  workspaceId?: unknown;
-  channelId?: unknown;
-  agent?: unknown;
-};
 
 type OpenClawAgentConfig = {
   label: "MASBRE" | "MASBRO" | "MASSEH" | "GPT" | "CLAUDE" | "GEMINI" | "QWEN" | "DEEPSEEK" | "GROK";
@@ -145,17 +139,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json().catch(() => null) as AgentInvokeBody | null;
-  const message = typeof body?.message === "string" ? body.message.trim() : "";
-  const workspaceId = typeof body?.workspaceId === "string" ? body.workspaceId : "agentspace";
-  const channelId = typeof body?.channelId === "string" ? body.channelId : "ide-project";
-  const agent = typeof body?.agent === "string" ? body.agent : "MASBRE";
+  const body = await readJsonObject(request);
 
-  if (!message) {
-    return NextResponse.json(
-      { ok: false, error: "Agent message is required." },
-      { status: 400 },
-    );
+  if (!body) {
+    return validationError("Request body must be a JSON object.");
+  }
+
+  const messageResult = requiredString(body, "message", "Agent message");
+  const message = messageResult.value;
+  const workspaceId = optionalString(body, "workspaceId") || "agentspace";
+  const channelId = optionalString(body, "channelId") || "ide-project";
+  const agent = optionalString(body, "agent") || "MASBRE";
+
+  if (messageResult.error) {
+    return validationError("Agent message is required.");
   }
 
   const openClawCli = process.env.OPENCLAW_CLI_PATH?.trim() || "openclaw";
@@ -218,7 +215,15 @@ export async function POST(request: Request) {
   }
 
   const supabase = createServerSupabaseClient();
-  const user = getDashboardUser();
+  const user = getDashboardRequestUser(request);
+
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized." },
+      { status: 401 },
+    );
+  }
+
   let savedMessage = null;
   let persisted: "supabase" | "not-configured" | "failed" = "not-configured";
   let persistError: string | null = null;

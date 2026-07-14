@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
 import { isDashboardRequestAuthenticated } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { optionalBoolean, optionalPlainObject, optionalString, readJsonObject, validationError } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
-};
-
-type PatchBody = {
-  content?: unknown;
-  pinned?: unknown;
-  reactions?: unknown;
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -32,13 +27,10 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
-  const body = await request.json().catch(() => null) as PatchBody | null;
+  const body = await readJsonObject(request);
 
   if (!body) {
-    return NextResponse.json(
-      { ok: false, error: "Request body is required." },
-      { status: 400 },
-    );
+    return validationError("Request body must be a JSON object.");
   }
 
   const existing = await supabase
@@ -61,26 +53,27 @@ export async function PATCH(request: Request, context: RouteContext) {
     updated_at: new Date().toISOString(),
   };
 
-  if (typeof body.content === "string") {
-    const content = body.content.trim();
+  const content = optionalString(body, "content");
 
+  if ("content" in body) {
     if (!content) {
-      return NextResponse.json(
-        { ok: false, error: "Message content cannot be empty." },
-        { status: 400 },
-      );
+      return validationError("Message content cannot be empty.");
     }
 
     updates.content = content;
     metadata.edited = true;
   }
 
-  if (typeof body.pinned === "boolean") {
-    metadata.pinned = body.pinned;
+  const pinned = optionalBoolean(body, "pinned");
+
+  if (pinned !== undefined) {
+    metadata.pinned = pinned;
   }
 
-  if (body.reactions && typeof body.reactions === "object" && !Array.isArray(body.reactions)) {
-    metadata.reactions = body.reactions;
+  const reactions = optionalPlainObject(body, "reactions");
+
+  if (reactions) {
+    metadata.reactions = reactions;
   }
 
   updates.metadata = metadata;

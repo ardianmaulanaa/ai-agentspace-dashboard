@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
-import { getDashboardUser, isDashboardRequestAuthenticated } from "@/lib/auth";
+import { getDashboardRequestUser, isDashboardRequestAuthenticated } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { resolveChannelId, resolveWorkspaceId } from "@/lib/supabase-records";
+import { optionalString, readJsonObject, requiredString, validationError } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
-
-type ForumPostBody = {
-  workspaceId?: unknown;
-  channelId?: unknown;
-  title?: unknown;
-  body?: unknown;
-  tag?: unknown;
-  status?: unknown;
-};
 
 export async function POST(request: Request) {
   if (!isDashboardRequestAuthenticated(request)) {
@@ -31,19 +23,23 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json().catch(() => null) as ForumPostBody | null;
-  const workspaceInput = typeof body?.workspaceId === "string" ? body.workspaceId.trim() : "";
-  const channelInput = typeof body?.channelId === "string" ? body.channelId.trim() : "";
-  const title = typeof body?.title === "string" ? body.title.trim() : "";
-  const content = typeof body?.body === "string" ? body.body.trim() : "";
-  const tag = typeof body?.tag === "string" ? body.tag.trim() : "General";
-  const status = typeof body?.status === "string" ? body.status.trim() : "open";
+  const body = await readJsonObject(request);
 
-  if (!title || !content) {
-    return NextResponse.json(
-      { ok: false, error: "Forum title and body are required." },
-      { status: 400 },
-    );
+  if (!body) {
+    return validationError("Request body must be a JSON object.");
+  }
+
+  const titleResult = requiredString(body, "title", "Forum title");
+  const bodyResult = requiredString(body, "body", "Forum body");
+  const workspaceInput = optionalString(body, "workspaceId");
+  const channelInput = optionalString(body, "channelId");
+  const title = titleResult.value;
+  const content = bodyResult.value;
+  const tag = optionalString(body, "tag") || "General";
+  const status = optionalString(body, "status") || "open";
+
+  if (titleResult.error || bodyResult.error) {
+    return validationError("Forum title and body are required.");
   }
 
   const workspaceResult = await resolveWorkspaceId(supabase, workspaceInput);
@@ -64,12 +60,21 @@ export async function POST(request: Request) {
     );
   }
 
+  const user = getDashboardRequestUser(request);
+
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized." },
+      { status: 401 },
+    );
+  }
+
   const result = await supabase
     .from("forum_posts")
     .insert({
       workspace_id: workspaceResult.id,
       channel_id: channelResult.id,
-      author_name: getDashboardUser().displayName,
+      author_name: user.displayName,
       title,
       content,
       status,

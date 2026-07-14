@@ -1,221 +1,293 @@
-# AI AgentSpace Management System
+# AI AgentSpace Dashboard
 
-## Deskripsi
+AI AgentSpace Dashboard adalah aplikasi backend + dashboard portfolio untuk mengelola workspace AI, channel diskusi, forum review, riwayat pesan, dan eksekusi multi-agent melalui OpenClaw.
 
-AI AgentSpace Management System merupakan aplikasi backend yang digunakan untuk mengelola workspace AI, pengguna, dan aktivitas agent dalam satu platform. Sistem ini dibuat untuk mempermudah pengelolaan AI Agent yang digunakan oleh banyak pengguna dengan hak akses yang berbeda.
+Project ini disesuaikan dengan rubrik Backend Study Group: autentikasi, RBAC, relasi database, validasi request, struktur API modular, dokumentasi OpenAPI, dan fitur bonus seperti upload attachment, search/filter di UI, serta rate limiting login.
 
-Pada sistem ini, setiap pengguna dapat bergabung ke dalam sebuah workspace sesuai dengan perannya. Workspace memiliki beberapa AI Agent yang dapat digunakan untuk menjalankan berbagai aktivitas. Seluruh aktivitas tersebut akan disimpan sebagai riwayat sehingga dapat dipantau kembali oleh pemilik workspace maupun administrator.
+## Topik
 
-Project ini dikembangkan sebagai tugas besar Backend Study Group dengan menerapkan konsep REST API, autentikasi JWT, Role-Based Access Control (RBAC), serta arsitektur backend yang modular.
+Topik bebas: **AI Workspace & Agent Management Dashboard**.
 
----
+Fokus sistem:
 
-# Tujuan
+- Mengelola workspace AI.
+- Mengelola category dan channel mirip Discord.
+- Menyimpan pesan user dan balasan agent.
+- Membuat forum post dan reply untuk review ide.
+- Memanggil AI agent seperti MASBRE, MASBRO, MASSEH, GPT, Claude, Gemini, Qwen, DeepSeek, dan Grok melalui OpenClaw.
+- Menampilkan status konfigurasi Supabase, provider AI, dan agent bridge.
 
-- Membangun REST API yang terstruktur dan mudah dikembangkan.
-- Menerapkan autentikasi yang aman menggunakan JWT.
-- Mengimplementasikan Role-Based Access Control (RBAC).
-- Mengelola data workspace, AI Agent, dan aktivitas pengguna.
-- Menyediakan laporan penggunaan AI Agent berdasarkan aktivitas yang dilakukan.
+## Stack
 
----
-
-# Fitur
-
-## Authentication
-
-- Register pengguna
-- Login
-- Logout
-- Refresh Access Token
-- Melihat profil pengguna (Current User)
-
----
-
-## Workspace Management
-
-- Membuat Workspace
-- Mengubah informasi Workspace
-- Menghapus Workspace
-- Melihat daftar Workspace
-- Melihat detail Workspace
-
----
-
-## Member Management
-
-- Menambahkan anggota ke Workspace
-- Mengubah role anggota
-- Menghapus anggota
-- Melihat seluruh anggota Workspace
-
----
-
-## AI Agent Management
-
-- Membuat AI Agent
-- Mengubah data AI Agent
-- Menghapus AI Agent
-- Mengaktifkan atau menonaktifkan Agent
-- Melihat daftar AI Agent
-
----
-
-## Activity Management
-
-- Menjalankan aktivitas AI Agent
-- Menyimpan riwayat aktivitas
-- Melihat histori penggunaan AI Agent
-- Melihat detail aktivitas
-
----
-
-## Analytics
-
-- Total penggunaan AI Agent
-- Statistik aktivitas Workspace
-- Statistik penggunaan setiap Agent
-- Rekap penggunaan berdasarkan periode
-
----
-
-# Role Pengguna
-
-## Admin
-
-Admin memiliki akses penuh terhadap seluruh sistem.
-
-Hak akses:
-
-- Mengelola seluruh pengguna
-- Mengelola seluruh Workspace
-- Mengelola seluruh AI Agent
-- Melihat seluruh aktivitas sistem
-- Melihat statistik sistem
-
----
-
-## Workspace Owner
-
-Workspace Owner bertanggung jawab terhadap Workspace yang dimiliki.
-
-Hak akses:
-
-- Membuat Workspace
-- Mengelola anggota
-- Mengelola AI Agent
-- Melihat aktivitas Workspace
-- Melihat laporan penggunaan
-
----
-
-## Member
-
-Member hanya memiliki akses terhadap Workspace yang diikutinya.
-
-Hak akses:
-
-- Melihat AI Agent
-- Menggunakan AI Agent
-- Melihat riwayat aktivitas pribadi
-
----
-
-# Teknologi
-
-- Node.js
-- Express.js
+- Next.js 16 App Router
+- React 19
 - TypeScript
-- Prisma ORM
-- MySQL
-- JWT Authentication
-- bcrypt
-- Zod Validation
-- Swagger OpenAPI
-- Multer
-- Express Rate Limit
+- Supabase
+- OpenClaw CLI agent bridge
+- Server Route Handlers sebagai REST API
+- Custom validation helper
+- HTTP-only cookies untuk auth session
 
----
+## Cara Menjalankan
 
-# Struktur Folder
-
-```text
-backend/
-│
-├── prisma/
-│   ├── schema.prisma
-│   └── migrations/
-│
-├── src/
-│
-├── config/
-├── controllers/
-├── middlewares/
-├── routes/
-├── services/
-├── validations/
-├── utils/
-├── types/
-│
-├── app.ts
-└── server.ts
+```bash
+npm install
+npm run dev
 ```
 
----
+Local app:
 
-# Keamanan
+```text
+http://localhost:3000
+```
 
-Beberapa mekanisme keamanan yang diterapkan antara lain:
+OpenAPI JSON:
 
-- JWT Access Token
-- JWT Refresh Token
-- Password Hashing menggunakan bcrypt
-- Middleware Authentication
-- Role-Based Access Control (RBAC)
-- Request Validation menggunakan Zod
-- Rate Limiting pada endpoint login
-- Global Error Handling
+```text
+http://localhost:3000/api/docs/openapi
+```
 
----
+## Environment
 
-# Dokumentasi API
+Gunakan file `.env` di root project. File ini tidak ikut dikomit karena masuk `.gitignore`.
 
-Seluruh endpoint didokumentasikan menggunakan Swagger sehingga proses pengujian API dapat dilakukan secara langsung melalui browser.
+Auth utama memakai Supabase Authentication Users. Env dashboard di bawah ini hanya fallback admin lokal dan token cookie dashboard.
 
-Selain Swagger, pengujian endpoint juga dapat dilakukan menggunakan Postman.
+```env
+DASHBOARD_USERNAME=ardian
+DASHBOARD_DISPLAY_NAME=Ardian
+DASHBOARD_ROLE=admin
+DASHBOARD_PASSWORD_HASH=
+DASHBOARD_PASSWORD=
+DASHBOARD_ACCESS_TOKEN=
+DASHBOARD_REFRESH_TOKEN=
+```
 
----
+`DASHBOARD_PASSWORD_HASH` direkomendasikan untuk demo penilaian. Format yang didukung:
 
-# Pengujian
+```text
+scrypt$salt$hexhash
+```
 
-Beberapa skenario pengujian yang dilakukan antara lain:
+`DASHBOARD_PASSWORD` tetap tersedia sebagai fallback lokal.
 
-- Register pengguna
-- Login dan Logout
-- Refresh Token
-- CRUD Workspace
-- CRUD AI Agent
-- CRUD Member
-- Aktivitas AI Agent
-- Hak akses setiap Role
-- Validasi input
-- Error Handling
+Supabase:
 
----
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+AUTH_USER_STORE=supabase-auth
+```
 
-# Pengembangan Selanjutnya
+Schema database untuk demo ada di:
 
-Beberapa fitur yang dapat ditambahkan pada pengembangan berikutnya antara lain:
+```text
+supabase/schema.sql
+```
 
-- Integrasi AI API (OpenAI, Gemini, Claude, dan lain-lain)
-- Notifikasi real-time
-- Dashboard analitik yang lebih lengkap
-- Monitoring penggunaan token AI
-- Upload dokumen untuk knowledge base
-- Riwayat percakapan AI
+OpenClaw:
 
----
+```env
+OPENCLAW_CLI_PATH=openclaw
+OPENCLAW_PROFILE=masbre
+OPENCLAW_AGENT_ID=main
+OPENCLAW_SESSION_KEY=agent:main:dashboard
+```
 
-# Kesimpulan
+## Fitur Sesuai Rubrik
 
-AI AgentSpace Management System merupakan backend REST API yang dirancang untuk mengelola Workspace AI secara terstruktur. Dengan menerapkan autentikasi JWT, RBAC, validasi data, dan arsitektur modular, sistem ini diharapkan dapat menjadi dasar pengembangan platform AI yang aman, mudah dikelola, dan dapat dikembangkan lebih lanjut sesuai kebutuhan.
+### 1. Autentikasi & Keamanan
+
+Status: sebagian besar sudah ada.
+
+- Login memakai email Supabase Auth dan password. Fallback admin lokal masih tersedia untuk demo.
+- Register member baru melalui halaman `/register` dan Supabase Authentication Users.
+- Fallback password admin mendukung hash scrypt.
+- Password user hasil register dikelola oleh Supabase Auth, bukan file lokal.
+- Session memakai HTTP-only access cookie dan refresh cookie.
+- Endpoint refresh tersedia di `POST /api/auth/refresh`.
+- Logout menghapus semua cookie auth.
+- Login memiliki in-memory rate limiting untuk mengurangi brute force.
+- Role tersedia lewat `DASHBOARD_ROLE`.
+- Endpoint admin cleanup dibatasi untuk role `admin`.
+
+Yang belum dibuat penuh:
+
+- JWT signed token belum dipakai. Implementasi sekarang memakai server-side opaque token dari env.
+- Multi-user database belum ada; user dashboard masih single-user dari env.
+
+### 2. Kelengkapan & Logika Bisnis
+
+Status: sudah ada untuk MVP.
+
+Entity utama:
+
+- `workspaces`
+- `categories`
+- `channels`
+- `messages`
+- `forum_posts`
+- `forum_replies`
+
+Logika bisnis:
+
+- Dashboard mengambil workspace, category, channel, messages, forum post, dan replies dari Supabase.
+- User bisa membuat category.
+- User bisa membuat channel bertipe `text`, `forum`, atau `voice`.
+- User bisa membuat pesan dengan attachment image data URL.
+- User bisa edit, pin, react, dan delete message.
+- User bisa membuat forum post dan reply.
+- User bisa invoke agent dan balasannya disimpan ke Supabase.
+
+Yang belum dibuat penuh:
+
+- Workspace member management belum menjadi endpoint terpisah.
+
+### 3. Validasi Request
+
+Status: sudah dirapikan.
+
+Route-route create/update sekarang memakai helper `src/lib/validation.ts` untuk:
+
+- Memastikan body adalah JSON object.
+- Memastikan field wajib tidak kosong.
+- Membatasi enum channel type.
+- Membatasi attachment ke image data URL.
+- Mengembalikan HTTP 400 untuk bad request.
+
+### 4. Struktur Kode
+
+Status: sesuai Next.js App Router.
+
+Struktur penting:
+
+```text
+src/app/api/
+  admin/cleanup
+  agents/invoke
+  auth/login
+  auth/logout
+  auth/me
+  auth/refresh
+  categories
+  channels
+  config/status
+  dashboard/data
+  docs/openapi
+  forum-posts
+  messages
+
+src/lib/
+  auth.ts
+  env.ts
+  supabase.ts
+  supabase-records.ts
+  validation.ts
+```
+
+Catatan: karena ini Next.js, struktur tidak memakai `controllers/routes/middlewares` Express, tetapi pemisahan tanggung jawabnya tetap ada melalui route handlers dan `src/lib`.
+
+### 5. Error Handling
+
+Status: sudah ada di route handler.
+
+Contoh status code:
+
+- `400` untuk request tidak valid.
+- `401` untuk belum login.
+- `403` untuk role tidak cukup.
+- `404` untuk resource tidak ditemukan.
+- `429` untuk login terlalu sering.
+- `500` untuk config/database error.
+- `502` untuk gagal invoke OpenClaw agent.
+
+### 6. Dokumentasi API
+
+Status: sudah ada.
+
+OpenAPI JSON tersedia di:
+
+```text
+GET /api/docs/openapi
+```
+
+Endpoint ini mendokumentasikan auth, dashboard data, category, channel, message, forum, agent invoke, dan admin cleanup.
+
+### 7. Bonus
+
+Status: ada beberapa.
+
+- File upload ringan melalui image attachment data URL pada message.
+- Search/filter tersedia di UI dashboard.
+- Login rate limiting tersedia.
+- Multi-agent bridge tersedia.
+- Admin cleanup dry-run tersedia.
+
+## Endpoint Utama
+
+Auth:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+
+Dashboard:
+
+- `GET /api/dashboard/data`
+- `GET /api/config/status`
+
+Workspace:
+
+- `POST /api/categories`
+- `POST /api/channels`
+
+Messages:
+
+- `GET /api/messages`
+- `POST /api/messages`
+- `PATCH /api/messages/:id`
+- `DELETE /api/messages/:id`
+
+Forum:
+
+- `POST /api/forum-posts`
+- `POST /api/forum-posts/:id/replies`
+
+Agent:
+
+- `POST /api/agents/invoke`
+
+Admin:
+
+- `POST /api/admin/cleanup`
+
+Docs:
+
+- `GET /api/docs/openapi`
+
+## Demo Flow
+
+1. Login sebagai admin.
+2. Atau buka `/register` untuk membuat akun member.
+3. Buka dashboard.
+4. Cek config status.
+5. Buat category baru.
+6. Buat channel baru.
+7. Kirim message dengan atau tanpa attachment.
+8. Edit/pin/react message.
+9. Buat forum post.
+10. Tambah reply forum.
+11. Invoke agent MASBRE/MASBRO/MASSEH.
+12. Lihat balasan agent tersimpan di message history.
+13. Buka `/api/docs/openapi` untuk dokumentasi API.
+
+## Yang Masih Bisa Ditingkatkan
+
+- Tambah migration SQL Supabase di repo.
+- Tambah tabel users, roles, workspace_members untuk multi-user sungguhan.
+- Ganti opaque env token menjadi JWT access/refresh token yang signed.
+- Tambah Swagger UI dari OpenAPI JSON.
+- Tambah automated API test.

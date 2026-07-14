@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
-import { getDashboardUser, isDashboardRequestAuthenticated } from "@/lib/auth";
+import { getDashboardRequestUser, isDashboardRequestAuthenticated } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { readJsonObject, requiredString, validationError } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
-};
-
-type ReplyBody = {
-  body?: unknown;
 };
 
 export async function POST(request: Request, context: RouteContext) {
@@ -30,14 +27,17 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
-  const body = await request.json().catch(() => null) as ReplyBody | null;
-  const content = typeof body?.body === "string" ? body.body.trim() : "";
+  const body = await readJsonObject(request);
 
-  if (!content) {
-    return NextResponse.json(
-      { ok: false, error: "Reply body is required." },
-      { status: 400 },
-    );
+  if (!body) {
+    return validationError("Request body must be a JSON object.");
+  }
+
+  const contentResult = requiredString(body, "body", "Reply body");
+  const content = contentResult.value;
+
+  if (contentResult.error) {
+    return validationError("Reply body is required.");
   }
 
   const postResult = await supabase
@@ -53,7 +53,15 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  const user = getDashboardUser();
+  const user = getDashboardRequestUser(request);
+
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized." },
+      { status: 401 },
+    );
+  }
+
   const result = await supabase
     .from("forum_replies")
     .insert({

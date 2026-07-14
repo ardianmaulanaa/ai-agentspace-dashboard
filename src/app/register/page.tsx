@@ -3,38 +3,51 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 
-export default function LoginPage() {
-  const [email, setEmail] = useState("ardian@agentspace.com");
+export default function RegisterPage() {
+  const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+  async function handleRegister(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, displayName, password, confirmPassword }),
       });
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Login gagal.");
+        setError(data.error || "Register gagal.");
         return;
       }
 
       window.location.href = "/dashboard";
-    } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : "Login gagal.");
+    } catch (registerError) {
+      setError(registerError instanceof Error ? registerError.message : "Register gagal.");
     } finally {
       setLoading(false);
     }
   }
+
+  const inputStyle = {
+    width: "100%",
+    padding: "12px 13px",
+    borderRadius: 12,
+    background: "rgba(0,0,0,0.22)",
+    border: "1px solid rgba(255,255,255,0.09)",
+    color: "#f8fafc",
+    outline: "none",
+    fontSize: 14,
+  };
 
   return (
     <main style={{
@@ -55,8 +68,8 @@ export default function LoginPage() {
         background: "radial-gradient(circle at 22% 12%, rgba(34,211,238,0.18), transparent 34%), radial-gradient(circle at 80% 78%, rgba(16,185,129,0.12), transparent 32%)",
       }} />
 
-      <form onSubmit={handleLogin} style={{
-        width: "min(420px, 100%)",
+      <form onSubmit={handleRegister} style={{
+        width: "min(460px, 100%)",
         borderRadius: 18,
         padding: 22,
         background: "rgba(8,14,26,0.86)",
@@ -83,10 +96,10 @@ export default function LoginPage() {
         </div>
 
         <h1 style={{ margin: 0, fontSize: 24, lineHeight: 1.15, color: "#f8fafc" }}>
-          Login Dashboard
+          Register AgentSpace
         </h1>
         <p style={{ margin: "8px 0 20px", color: "rgba(255,255,255,0.45)", fontSize: 13, lineHeight: 1.6 }}>
-          Masuk dulu sebelum buka AgentSpace.
+          Buat akun member untuk masuk ke dashboard.
         </p>
 
         <label style={{ display: "block", marginBottom: 12 }}>
@@ -98,21 +111,25 @@ export default function LoginPage() {
             onChange={event => setEmail(event.target.value)}
             autoComplete="email"
             inputMode="email"
-            placeholder="email@agentspace.com"
-            style={{
-              width: "100%",
-              padding: "12px 13px",
-              borderRadius: 12,
-              background: "rgba(0,0,0,0.22)",
-              border: "1px solid rgba(255,255,255,0.09)",
-              color: "#f8fafc",
-              outline: "none",
-              fontSize: 14,
-            }}
+            placeholder="contoh: member@agentspace.com"
+            style={inputStyle}
           />
         </label>
 
-        <label style={{ display: "block", marginBottom: 14 }}>
+        <label style={{ display: "block", marginBottom: 12 }}>
+          <span style={{ display: "block", fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.46)", marginBottom: 7 }}>
+            Display Name
+          </span>
+          <input
+            value={displayName}
+            onChange={event => setDisplayName(event.target.value)}
+            autoComplete="name"
+            placeholder="Nama yang tampil di dashboard"
+            style={inputStyle}
+          />
+        </label>
+
+        <label style={{ display: "block", marginBottom: 12 }}>
           <span style={{ display: "block", fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.46)", marginBottom: 7 }}>
             Password
           </span>
@@ -121,18 +138,8 @@ export default function LoginPage() {
               value={password}
               onChange={event => setPassword(event.target.value)}
               type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
-              style={{
-                flex: 1,
-                minWidth: 0,
-                padding: "12px 13px",
-                borderRadius: 12,
-                background: "rgba(0,0,0,0.22)",
-                border: "1px solid rgba(255,255,255,0.09)",
-                color: "#f8fafc",
-                outline: "none",
-                fontSize: 14,
-              }}
+              autoComplete="new-password"
+              style={{ ...inputStyle, flex: 1, minWidth: 0 }}
             />
             <button
               type="button"
@@ -150,6 +157,19 @@ export default function LoginPage() {
               {showPassword ? "Hide" : "Show"}
             </button>
           </div>
+        </label>
+
+        <label style={{ display: "block", marginBottom: 14 }}>
+          <span style={{ display: "block", fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.46)", marginBottom: 7 }}>
+            Confirm Password
+          </span>
+          <input
+            value={confirmPassword}
+            onChange={event => setConfirmPassword(event.target.value)}
+            type={showPassword ? "text" : "password"}
+            autoComplete="new-password"
+            style={inputStyle}
+          />
         </label>
 
         {error && (
@@ -183,11 +203,11 @@ export default function LoginPage() {
             boxShadow: loading ? "none" : "0 0 24px rgba(34,211,238,0.28)",
           }}
         >
-          {loading ? "Masuk..." : "Masuk Dashboard"}
+          {loading ? "Membuat akun..." : "Buat Akun"}
         </button>
 
         <Link
-          href="/register"
+          href="/"
           style={{
             display: "block",
             marginTop: 12,
@@ -202,17 +222,8 @@ export default function LoginPage() {
             textDecoration: "none",
           }}
         >
-          Buat akun baru
+          Sudah punya akun
         </Link>
-
-        <div style={{
-          marginTop: 14,
-          color: "rgba(255,255,255,0.32)",
-          fontSize: 11,
-          lineHeight: 1.6,
-        }}>
-          Credential disimpan di file env lokal, bukan di browser.
-        </div>
       </form>
 
       <style>{`
