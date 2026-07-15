@@ -4,6 +4,8 @@
 import { useState, useRef, useEffect } from "react";
 import type { ChangeEvent, ClipboardEvent, FormEvent, ReactNode } from "react";
 import Image from "next/image";
+import { AppHeaderShell } from "@/components/dashboard/AppHeaderShell";
+import { RightNavbarShell } from "@/components/dashboard/RightNavbarShell";
 import type { DashboardUser } from "@/lib/auth";
 import type { ConfigStatus } from "@/lib/env";
 
@@ -141,12 +143,13 @@ type Profile = {
 };
 
 type AgentName = "MASBRE" | "MASBRO" | "MASSEH" | "GPT" | "CLAUDE" | "GEMINI" | "QWEN" | "DEEPSEEK" | "GROK";
+type AgentAccessLevel = "viewer" | "operator" | "admin";
 
 const ACCENTS: Accent[] = [
-  { from: "#14b8a6", to: "#f59e0b" },
-  { from: "#6366f1", to: "#ec4899" },
-  { from: "#f97316", to: "#ef4444" },
-  { from: "#22c55e", to: "#0ea5e9" },
+  { from: "#14b8a6", to: "#0f766e" },
+  { from: "#2dd4bf", to: "#115e59" },
+  { from: "#5eead4", to: "#0f766e" },
+  { from: "#99f6e4", to: "#14b8a6" },
 ];
 
 const initialWorkspaces: Workspace[] = [
@@ -191,19 +194,29 @@ const initialForumReplies: Record<string, ForumReply[]> = {
 };
 
 const profiles: Profile[] = [
-  { name: "Ardian", role: "Owner", initials: "A", accent: ["#6b7280","#374151"], status: "dnd", crown: true },
-  { name: "MASBRE", role: "AI lead assistant", initials: "MB", accent: ["#22d3ee","#3b82f6"], status: "online", app: true },
-  { name: "MASBRO", role: "AI support", initials: "MO", accent: ["#fbbf24","#f97316"], status: "online", app: true },
-  { name: "MASSEH", role: "AI reviewer", initials: "MS", accent: ["#34d399","#14b8a6"], status: "online", app: true },
-  { name: "GPT", role: "OpenAI generalist", initials: "GP", accent: ["#10b981","#22d3ee"], status: "online", app: true },
-  { name: "CLAUDE", role: "Anthropic reasoning", initials: "CL", accent: ["#a78bfa","#f472b6"], status: "online", app: true },
-  { name: "GEMINI", role: "Google multimodal", initials: "GM", accent: ["#60a5fa","#818cf8"], status: "online", app: true },
-  { name: "QWEN", role: "Alibaba coding", initials: "QW", accent: ["#f97316","#facc15"], status: "online", app: true },
-  { name: "DEEPSEEK", role: "DeepSeek reasoning", initials: "DS", accent: ["#38bdf8","#2563eb"], status: "online", app: true },
-  { name: "GROK", role: "xAI realtime style", initials: "GX", accent: ["#94a3b8","#64748b"], status: "online", app: true },
+  { name: "Ardian", role: "Owner", initials: "A", accent: ["#475569","#1f2937"], status: "dnd", crown: true },
+  { name: "MASBRE", role: "AI lead assistant", initials: "MB", accent: ["#14b8a6","#0f766e"], status: "online", app: true },
+  { name: "MASBRO", role: "AI support", initials: "MO", accent: ["#2dd4bf","#115e59"], status: "online", app: true },
+  { name: "MASSEH", role: "AI reviewer", initials: "MS", accent: ["#5eead4","#0f766e"], status: "online", app: true },
+  { name: "GPT", role: "OpenAI generalist", initials: "GP", accent: ["#14b8a6","#134e4a"], status: "online", app: true },
+  { name: "CLAUDE", role: "Anthropic reasoning", initials: "CL", accent: ["#2dd4bf","#0f766e"], status: "online", app: true },
+  { name: "GEMINI", role: "Google multimodal", initials: "GM", accent: ["#5eead4","#115e59"], status: "online", app: true },
+  { name: "QWEN", role: "Alibaba coding", initials: "QW", accent: ["#14b8a6","#0f766e"], status: "online", app: true },
+  { name: "DEEPSEEK", role: "DeepSeek reasoning", initials: "DS", accent: ["#2dd4bf","#134e4a"], status: "online", app: true },
+  { name: "GROK", role: "xAI realtime style", initials: "GX", accent: ["#64748b","#334155"], status: "online", app: true },
 ];
 
 const AGENT_OPTIONS: AgentName[] = ["MASBRE", "MASBRO", "MASSEH", "GPT", "CLAUDE", "GEMINI", "QWEN", "DEEPSEEK", "GROK"];
+
+const initialAgentAccess = AGENT_OPTIONS.reduce(
+  (access, agent) => ({ ...access, [agent]: agent === "MASBRE" ? "admin" : "operator" }),
+  {} as Record<AgentName, AgentAccessLevel>,
+);
+
+const initialAgentTokens = AGENT_OPTIONS.reduce(
+  (tokens, agent) => ({ ...tokens, [agent]: `ags_${agent.toLowerCase()}_demo_token` }),
+  {} as Record<AgentName, string>,
+);
 
 const MODEL_PREFERENCES: ModelPreference[] = [
   {
@@ -523,6 +536,8 @@ export default function AgentSpaceDashboard() {
   const [newChannelType, setNewChannelType] = useState<ChannelType>("text");
   const [targetCategory, setTargetCategory] = useState(initialCategories[0].name);
   const [developerTools, setDeveloperTools] = useState(initialDeveloperTools);
+  const [agentAccess, setAgentAccess] = useState(initialAgentAccess);
+  const [agentTokens, setAgentTokens] = useState(initialAgentTokens);
   const [selectedModel, setSelectedModel] = useState(MODEL_PREFERENCES[0].models[0]);
   const [selectedAgent, setSelectedAgent] = useState<AgentName>("MASBRE");
   const [configStatus, setConfigStatus] = useState<ConfigStatus | null>(null);
@@ -812,10 +827,26 @@ export default function AgentSpaceDashboard() {
 
   function openRightPanel(panel: string) {
     setRightPanel(panel);
-    if (isMobile) {
-      setSidebarCollapsed(true);
-      setRightPanelOpen(true);
-    }
+    setSidebarCollapsed(true);
+    setRightPanelOpen(true);
+  }
+
+  function updateAgentAccess(agent: AgentName, access: AgentAccessLevel) {
+    setAgentAccess(current => ({
+      ...current,
+      [agent]: access,
+    }));
+  }
+
+  function regenerateAgentToken(agent: AgentName) {
+    const randomPart =
+      globalThis.crypto?.randomUUID?.().replaceAll("-", "").slice(0, 18) ||
+      Math.random().toString(36).slice(2, 20);
+
+    setAgentTokens(current => ({
+      ...current,
+      [agent]: `ags_${agent.toLowerCase()}_${randomPart}`,
+    }));
   }
 
   function logApiCall(log: Omit<ApiLog, "id" | "time">) {
@@ -1134,7 +1165,7 @@ export default function AgentSpaceDashboard() {
           author: selectedAgent,
           time,
           ai: true,
-          text: `${selectedAgent} sedang memproses...`,
+          text: `${selectedAgent} sedang mengetik...`,
         },
       ]);
     }
@@ -1874,25 +1905,19 @@ export default function AgentSpaceDashboard() {
       transition: "background 0.22s ease, color 0.22s ease",
       minWidth: 0,
     }}>
-		      <div style={{
-		        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
-		        background: "transparent",
-		      }} />
 	      <div style={{
 	        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
-	        opacity: isLightTheme ? 0.34 : 0.20,
+	        opacity: isLightTheme ? 0.46 : 1,
 	        backgroundImage: "linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)",
-	        backgroundSize: "40px 40px",
-	        maskImage: "linear-gradient(to bottom, black, transparent 78%)",
+	        backgroundSize: "34px 34px",
+	        maskImage: "linear-gradient(to bottom, black, transparent 82%)",
 	      }} />
-      <div style={{
-        width: isMobile ? 58 : 72, flexShrink: 0, background: "var(--bg-rail)",
-        borderRight: "1px solid var(--border-subtle)",
-        display: "flex", flexDirection: "column", alignItems: "center",
-        padding: isMobile ? "12px 0" : "18px 0", gap: isMobile ? 8 : 10, zIndex: 10, position: "relative",
-        boxShadow: "var(--shadow-panel)",
-        backdropFilter: "blur(24px)",
-      }}>
+      <AppHeaderShell
+        isMobile={isMobile}
+        isOpen={!sidebarCollapsed}
+        onClose={() => setSidebarCollapsed(true)}
+        rail={(
+          <>
         <div style={{
           width: isMobile ? 40 : 46, height: isMobile ? 40 : 46, borderRadius: 15, marginBottom: 6,
           background: `linear-gradient(135deg, ${accent.from}, ${accent.to})`,
@@ -2049,23 +2074,9 @@ export default function AgentSpaceDashboard() {
             Logout
           </button>
         </div>
-      </div>
-      <div style={{
-        width: sidebarCollapsed ? 0 : isMobile ? "min(286px, calc(100vw - 58px))" : 258,
-        flexShrink: 0, overflow: "hidden",
-        transition: "width 0.3s cubic-bezier(0.4,0,0.2,1)",
-        background: "var(--bg-sidebar)",
-        borderRight: "1px solid var(--border-subtle)",
-        display: "flex", flexDirection: "column",
-        zIndex: isMobile ? 22 : 9,
-        position: isMobile ? "absolute" : "relative",
-        left: isMobile ? 58 : "auto",
-        top: isMobile ? 0 : "auto",
-        bottom: isMobile ? 0 : "auto",
-        height: isMobile ? "100%" : "auto",
-        boxShadow: isMobile && !sidebarCollapsed ? "24px 0 60px rgba(0,0,0,0.25)" : "none",
-        backdropFilter: "blur(24px)",
-      }}>
+          </>
+        )}
+      >
         <div style={{ padding: "18px 16px 14px", borderBottom: "1px solid var(--border-subtle)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -2309,8 +2320,16 @@ export default function AgentSpaceDashboard() {
             >{item.label}</button>
           ))}
         </div>
-      </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, zIndex: 8, position: "relative" }}>
+      </AppHeaderShell>
+      <div style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        minWidth: 0,
+        zIndex: 8,
+        position: "relative",
+        paddingLeft: isMobile ? 58 : 72,
+      }}>
 	        <div style={{
 	          minHeight: isMobile ? 104 : 68, flexShrink: 0, display: "flex", alignItems: "center",
 	          flexWrap: isMobile ? "wrap" : "nowrap",
@@ -2320,8 +2339,11 @@ export default function AgentSpaceDashboard() {
 	          background: "var(--bg-header)", backdropFilter: "blur(20px)",
             boxShadow: "0 1px 0 rgba(255,255,255,0.04) inset",
 	        }}>
-          {sidebarCollapsed && (
-            <button onClick={() => setSidebarCollapsed(false)} style={{
+          <button
+            type="button"
+            title={sidebarCollapsed ? "Open app header" : "Close app header"}
+            onClick={() => setSidebarCollapsed(current => !current)}
+            style={{
               background: "none", border: "none", color: "var(--text-muted)",
               cursor: "pointer", padding: 4, lineHeight: 0, transition: "color 0.2s",
             }}
@@ -2330,7 +2352,6 @@ export default function AgentSpaceDashboard() {
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>
-          )}
 
           <div style={{
             width: 36, height: 36, borderRadius: 12,
@@ -2353,47 +2374,40 @@ export default function AgentSpaceDashboard() {
 	          <div className="header-actions" style={{
 	            marginLeft: isMobile ? 0 : "auto",
 	            display: "flex",
-	            gap: isMobile ? 5 : 6,
+	            justifyContent: isMobile ? "flex-end" : "center",
 	            width: isMobile ? "100%" : undefined,
-	            maxWidth: isMobile ? "100%" : "min(340px, 42vw)",
-	            overflowX: "auto",
-	            overflowY: "hidden",
-	            flex: isMobile ? "0 0 100%" : "0 1 auto",
-	            minWidth: 0,
+	            flex: isMobile ? "0 0 100%" : "0 0 auto",
 	            padding: "2px 0",
 	          }}>
-            {[
-              { icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 3h5v5"/><path d="M21 3 10 14"/><path d="M15 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h5"/></svg>, label: "Invite", action: () => setShowInviteModal(true) },
-              { icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m16 6-8.4 8.4a2 2 0 1 0 2.8 2.8L18 9.6a4 4 0 1 0-5.7-5.7L4.7 11.5a6 6 0 1 0 8.5 8.5L21 12.2"/></svg>, label: "Pins", action: () => openRightPanel("pins") },
-              { icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="17" cy="21" r="3"/><circle cx="7" cy="21" r="3"/><path d="M13 21V7a4 4 0 0 0-8 0v14"/><path d="M13 7a4 4 0 0 1 8 0v2h-8"/></svg>, label: "Threads", action: () => openRightPanel("threads") },
-              { icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>, label: "Members", action: () => openRightPanel("profiles") },
-              { icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>, label: "Search", action: () => setGlobalSearchOpen(true) },
-              { icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m8 9-4 3 4 3"/><path d="m16 9 4 3-4 3"/><path d="m14 4-4 16"/></svg>, label: "DevTools", action: () => openRightPanel("devtools") },
-              {
-                icon: isLightTheme
-                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3a6 6 0 0 0 9 7.5A9 9 0 1 1 12 3Z"/></svg>
-                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>,
-                label: isLightTheme ? "Dark Mode" : "Light Mode",
-                action: toggleThemeMode,
-              },
-              { icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L4.2 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>, label: "Settings", action: () => setShowSettingsModal(true) },
-	            ].map(({ icon, label, action }) => {
-              const isActiveButton = (label === "Search" && globalSearchOpen) || (label === "Members" && rightPanel === "profiles") || (label === "Pins" && rightPanel === "pins") || (label === "Threads" && rightPanel === "threads") || (label === "DevTools" && rightPanel === "devtools");
-              return (
-	              <button key={label} title={label} onClick={action} style={{
-	                width: isMobile ? 31 : 34, height: isMobile ? 31 : 34, borderRadius: 11,
-	                background: isActiveButton ? `${accent.from}18` : "var(--bg-btn-ghost)",
-	                border: isActiveButton ? `1px solid ${accent.from}55` : "1px solid var(--border-subtle)",
-	                color: isActiveButton ? accent.from : "var(--text-muted)", cursor: "pointer",
-	                display: "flex", alignItems: "center", justifyContent: "center",
-	                flex: "0 0 auto",
-	                transition: "all 0.2s",
-                  boxShadow: isActiveButton ? `0 10px 24px ${accent.from}16` : "none",
-	              }}
-                onMouseEnter={e => { e.currentTarget.style.background = isActiveButton ? `${accent.from}22` : "var(--bg-btn-ghost-hover)"; e.currentTarget.style.color = isActiveButton ? accent.from : "var(--text-main)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = isActiveButton ? `${accent.from}18` : "var(--bg-btn-ghost)"; e.currentTarget.style.color = isActiveButton ? accent.from : "var(--text-muted)"; }}
-              >{icon}</button>
-            );})}
+            <button
+              type="button"
+              title="Open menu"
+              onClick={() => openRightPanel("hub")}
+              style={{
+                width: isMobile ? 36 : 40,
+                height: isMobile ? 36 : 40,
+                borderRadius: 12,
+                background: rightPanel === "hub" && rightPanelOpen ? `${accent.from}18` : "var(--bg-btn-ghost)",
+                border: rightPanel === "hub" && rightPanelOpen ? `1px solid ${accent.from}55` : "1px solid var(--border-subtle)",
+                color: rightPanel === "hub" && rightPanelOpen ? accent.from : "var(--text-muted)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+                boxShadow: rightPanel === "hub" && rightPanelOpen ? `0 10px 24px ${accent.from}16` : "none",
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = rightPanel === "hub" && rightPanelOpen ? `${accent.from}22` : "var(--bg-btn-ghost-hover)";
+                e.currentTarget.style.color = rightPanel === "hub" && rightPanelOpen ? accent.from : "var(--text-main)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = rightPanel === "hub" && rightPanelOpen ? `${accent.from}18` : "var(--bg-btn-ghost)";
+                e.currentTarget.style.color = rightPanel === "hub" && rightPanelOpen ? accent.from : "var(--text-muted)";
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L4.2 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+            </button>
           </div>
         </div>
 
@@ -3189,72 +3203,313 @@ export default function AgentSpaceDashboard() {
         )}
       </div>
 
-      {isMobile && (rightPanelOpen || !sidebarCollapsed) && (
-        <button
-          type="button"
-          aria-label="Close overlay"
-          onClick={() => {
-            setRightPanelOpen(false);
-            setSidebarCollapsed(true);
-          }}
-          style={{
-            position: "absolute", inset: 0, zIndex: 20,
-            background: "rgba(0,0,0,0.38)",
-            border: "none", padding: 0, cursor: "pointer",
-          }}
-        />
-      )}
-      {(!isMobile || rightPanelOpen) && (
-      <div style={{
-        width: isMobile ? "min(330px, calc(100vw - 58px))" : 286,
-        flexShrink: 0,
-        background: "var(--bg-sidebar)",
-        borderLeft: "1px solid var(--border-subtle)",
-        display: "flex", flexDirection: "column",
-        zIndex: isMobile ? 24 : 8,
-        position: isMobile ? "absolute" : "relative",
-        top: isMobile ? 0 : "auto",
-        right: isMobile ? 0 : "auto",
-        bottom: isMobile ? 0 : "auto",
-        height: isMobile ? "100%" : "auto",
-        boxShadow: isMobile ? "-24px 0 70px rgba(0,0,0,0.35)" : "none",
-        backdropFilter: "blur(24px)",
-      }}>
+      <RightNavbarShell
+        isMobile={isMobile}
+        isOpen={rightPanelOpen}
+        onClose={() => setRightPanelOpen(false)}
+      >
         <div style={{
-          display: "flex", gap: 0, padding: "16px 14px 0",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+          padding: "18px 18px 16px",
           borderBottom: "1px solid var(--border-subtle)",
         }}>
-          {[["profiles", "Members"], ["pins", "Pins"], ["threads", "Threads"], ["devtools", "Dev"], ["config", "Config"]].map(([id, label]) => (
-            <button key={id} onClick={() => setRightPanel(id)} style={{
-              flex: 1, padding: "8px 0 12px",
-              background: "none", border: "none",
-              borderBottom: rightPanel === id ? `2px solid ${accent.from}` : "2px solid transparent",
-              color: rightPanel === id ? "var(--text-main)" : "var(--text-muted)",
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: 12, fontWeight: 600, cursor: "pointer",
-              transition: "color 0.2s", letterSpacing: "0.03em",
-            }}>{label}</button>
-          ))}
-          {isMobile && (
-            <button
-              type="button"
-              title="Close panel"
-              onClick={() => setRightPanelOpen(false)}
-              style={{
-                width: 30, height: 30, borderRadius: 9,
-                marginLeft: 8, flexShrink: 0,
-                background: "var(--bg-btn-ghost)",
-                border: "1px solid var(--border-subtle)",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-              }}
-            >
-              ×
-            </button>
-          )}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: "var(--text-main)", lineHeight: 1 }}>
+              Menu
+            </div>
+            {rightPanel !== "hub" && (
+              <button
+                type="button"
+                onClick={() => setRightPanel("hub")}
+                style={{
+                  marginTop: 7,
+                  padding: 0,
+                  background: "none",
+                  border: "none",
+                  color: accent.from,
+                  cursor: "pointer",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: 12,
+                  fontWeight: 900,
+                }}
+              >
+                Kembali ke menu
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            title="Close panel"
+            onClick={() => setRightPanelOpen(false)}
+            style={{
+              width: 36, height: 36, borderRadius: 12,
+              flexShrink: 0,
+              background: "var(--bg-btn-ghost)",
+              border: "1px solid var(--border-subtle)",
+              color: "var(--text-muted)",
+              cursor: "pointer",
+            }}
+          >
+            ×
+          </button>
         </div>
 
-        {rightPanel === "profiles" ? (
+        {rightPanel === "hub" ? (
+          <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "18px 16px" : "22px 18px" }}>
+            <div style={{ marginBottom: 22 }}>
+              <div style={{
+                fontSize: 10,
+                fontWeight: 900,
+                letterSpacing: "0.34em",
+                color: accent.from,
+                textTransform: "uppercase",
+                marginBottom: 6,
+              }}>
+                Dashboard
+              </div>
+              <div style={{ fontSize: 30, lineHeight: 1.05, fontWeight: 900, color: "var(--text-main)" }}>
+                Akun
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 22 }}>
+                <Avatar initials={currentUserInitials} accent={["#14b8a6", "#0f766e"]} size={52} dnd />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 17,
+                    fontWeight: 900,
+                    color: "var(--text-main)",
+                    lineHeight: 1.25,
+                    overflowWrap: "anywhere",
+                  }}>
+                    {currentUser.displayName}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3, textTransform: "capitalize" }}>
+                    {currentUser.role} · {activeWsData.name}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: 18, fontWeight: 900, color: "var(--text-main)", marginBottom: 12 }}>
+              Data Dashboard
+            </div>
+
+            <div style={{
+              borderTop: "1px solid var(--border-subtle)",
+              borderBottom: "1px solid var(--border-subtle)",
+            }}>
+              {[
+                { title: "Info Pribadi", desc: "Lihat profil, role, dan workspace aktif.", action: () => openRightPanel("profiles") },
+                { title: "Member", desc: `${visibleProfiles.length} member dan agent online.`, action: () => openRightPanel("profiles") },
+                { title: "Pin", desc: `${pinnedMessages.length} pesan tersimpan di channel.`, action: () => openRightPanel("pins") },
+                { title: "Threads", desc: `${forumPosts.length} diskusi forum aktif.`, action: () => openRightPanel("threads") },
+                { title: "Cari Pesan", desc: "Cari chat, author, dan attachment.", action: () => setGlobalSearchOpen(true) },
+                { title: "Undang Member", desc: "Buat link invite untuk workspace.", action: () => setShowInviteModal(true) },
+                { title: "Ubah Kata Sandi", desc: "Perbarui password akun dashboard.", action: () => setShowSettingsModal(true) },
+                { title: "Developer Portal", desc: "Hak akses agent, token, dan gateway.", action: () => openRightPanel("developer") },
+                { title: "Konfigurasi", desc: "Env, model, tools, dan status API.", action: () => openRightPanel("config") },
+                { title: isLightTheme ? "Mode Gelap" : "Mode Terang", desc: "Ganti tema dashboard.", action: toggleThemeMode },
+              ].map((item, index, list) => (
+                <button
+                  key={item.title}
+                  type="button"
+                  onClick={item.action}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "16px 0",
+                    background: "transparent",
+                    border: "none",
+                    borderBottom: index === list.length - 1 ? "none" : "1px solid var(--border-subtle)",
+                    color: "var(--text-main)",
+                    cursor: "pointer",
+                    fontFamily: "'Space Grotesk', sans-serif",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = "var(--bg-btn-ghost)";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 15, fontWeight: 900 }}>{item.title}</div>
+                      <div style={{
+                        fontSize: 12,
+                        color: "var(--text-muted)",
+                        lineHeight: 1.45,
+                        marginTop: 5,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}>
+                        {item.desc}
+                      </div>
+                    </div>
+                    <span style={{ color: accent.from, fontSize: 24, lineHeight: 1, flexShrink: 0 }}>›</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : rightPanel === "developer" ? (
+          <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "14px" : "16px" }}>
+            <div style={{
+              borderRadius: 14,
+              padding: 16,
+              marginBottom: 14,
+              background: `linear-gradient(135deg, ${accent.from}18, ${accent.to}10)`,
+              border: `1px solid ${accent.from}28`,
+            }}>
+              <div style={{ fontSize: 15, fontWeight: 900, color: "var(--text-main)" }}>Developer Portal</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 5, lineHeight: 1.55 }}>
+                Kelola hak akses agent, token, dan status gateway seperti halaman developer Discord.
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+              {[
+                ["Agents", String(AGENT_OPTIONS.length)],
+                ["Admin", String(Object.values(agentAccess).filter(access => access === "admin").length)],
+                ["Tokens", String(Object.values(agentTokens).filter(Boolean).length)],
+                ["Logs", String(apiLogs.length)],
+              ].map(([label, value]) => (
+                <div key={label} style={{
+                  padding: "11px 9px",
+                  borderRadius: 12,
+                  background: "var(--surface)",
+                  border: "1px solid var(--border-subtle)",
+                  textAlign: "center",
+                }}>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: "var(--text-main)" }}>{value}</div>
+                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8 }}>
+              Agent Permissions
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {AGENT_OPTIONS.map(agent => {
+                const profile = visibleProfiles.find(item => item.name === agent);
+                const token = agentTokens[agent];
+
+                return (
+                  <div key={agent} style={{
+                    padding: 12,
+                    borderRadius: 14,
+                    background: selectedAgent === agent ? `${accent.from}12` : "var(--bg-btn-ghost)",
+                    border: selectedAgent === agent ? `1px solid ${accent.from}33` : "1px solid var(--border-subtle)",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 9 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 900, color: "var(--text-main)" }}>{agent}</div>
+                        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{profile?.role || "AI agent"}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAgent(agent)}
+                        style={{
+                          padding: "7px 9px",
+                          borderRadius: 9,
+                          background: selectedAgent === agent ? `linear-gradient(135deg, ${accent.from}, ${accent.to})` : "var(--bg-input)",
+                          border: selectedAgent === agent ? "none" : "1px solid var(--border-subtle)",
+                          color: selectedAgent === agent ? "white" : "var(--text-main)",
+                          cursor: "pointer",
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          fontSize: 10,
+                          fontWeight: 900,
+                        }}
+                      >
+                        {selectedAgent === agent ? "Active" : "Use"}
+                      </button>
+                    </div>
+
+                    <select
+                      value={agentAccess[agent]}
+                      onChange={e => updateAgentAccess(agent, e.target.value as AgentAccessLevel)}
+                      style={{
+                        width: "100%",
+                        padding: "9px 10px",
+                        borderRadius: 10,
+                        background: "var(--bg-input)",
+                        border: "1px solid var(--border-subtle)",
+                        color: "var(--text-main)",
+                        outline: "none",
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        fontSize: 12,
+                        fontWeight: 800,
+                      }}
+                    >
+                      <option value="viewer">Viewer - baca data</option>
+                      <option value="operator">Operator - chat dan invoke</option>
+                      <option value="admin">Admin - manage config</option>
+                    </select>
+
+                    <div style={{
+                      marginTop: 9,
+                      padding: "8px 9px",
+                      borderRadius: 10,
+                      background: "var(--bg-input)",
+                      border: "1px solid var(--border-subtle)",
+                    }}>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 800, marginBottom: 5 }}>TOKEN</div>
+                      <div style={{
+                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                        fontSize: 10,
+                        color: "var(--text-main)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}>
+                        {token}
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 9 }}>
+                      <button
+                        type="button"
+                        onClick={() => navigator.clipboard?.writeText(token)}
+                        style={{
+                          padding: "8px 9px",
+                          borderRadius: 10,
+                          background: "var(--bg-input)",
+                          border: "1px solid var(--border-subtle)",
+                          color: "var(--text-main)",
+                          cursor: "pointer",
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          fontSize: 11,
+                          fontWeight: 900,
+                        }}
+                      >
+                        Copy Token
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => regenerateAgentToken(agent)}
+                        style={{
+                          padding: "8px 9px",
+                          borderRadius: 10,
+                          background: `${accent.from}14`,
+                          border: `1px solid ${accent.from}2f`,
+                          color: accent.from,
+                          cursor: "pointer",
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          fontSize: 11,
+                          fontWeight: 900,
+                        }}
+                      >
+                        Regenerate
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : rightPanel === "profiles" ? (
           <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: isMobile ? "14px" : "16px" }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginBottom: 16 }}>
               {[["Online", String(visibleProfiles.filter(profile => profile.status === "online").length)], ["AI", String(visibleProfiles.filter(profile => profile.app).length)], ["Users", String(visibleProfiles.filter(profile => !profile.app).length)]].map(([label, val]) => (
@@ -3983,8 +4238,7 @@ export default function AgentSpaceDashboard() {
             >Save Configuration</button>
           </div>
         )}
-      </div>
-      )}
+      </RightNavbarShell>
 
       {(showInviteModal || showSettingsModal) && (
         <div
@@ -4116,19 +4370,19 @@ export default function AgentSpaceDashboard() {
 	        :root {
 	          --bg-app: #111318;
 	          --bg-rail: rgba(15, 17, 21, 0.92);
-	          --bg-sidebar: rgba(20, 22, 27, 0.88);
+	          --bg-sidebar: rgba(18, 20, 25, 0.90);
 	          --bg-header: rgba(18, 20, 25, 0.82);
-	          --bg-input: rgba(255, 255, 255, 0.06);
+	          --bg-input: rgba(255, 255, 255, 0.055);
 	          --bg-popover: rgba(22, 24, 29, 0.98);
 	          --bg-btn-ghost: rgba(255, 255, 255, 0.07);
 	          --bg-btn-ghost-hover: rgba(255, 255, 255, 0.12);
-	          --surface: rgba(255, 255, 255, 0.08);
-	          --surface-strong: rgba(255, 255, 255, 0.11);
+	          --surface: rgba(18, 20, 25, 0.88);
+	          --surface-strong: rgba(18, 20, 25, 0.94);
 	          --composer-bg: linear-gradient(to top, rgba(13, 15, 18, 0.95), rgba(13, 15, 18, 0.70));
 	          --text-main: #f1f5f9;
 	          --text-muted: rgba(241, 245, 249, 0.64);
-	          --border-subtle: rgba(255, 255, 255, 0.12);
-	          --grid-line: rgba(255, 255, 255, 0.045);
+	          --border-subtle: rgba(255, 255, 255, 0.11);
+	          --grid-line: rgba(255, 255, 255, 0.026);
 	          --shadow-panel: 12px 0 34px rgba(0, 0, 0, 0.22);
 	          --shadow-card: 0 18px 48px rgba(0, 0, 0, 0.20), 0 1px 0 rgba(255,255,255,0.08) inset;
 	          --shadow-soft: 0 10px 26px rgba(0,0,0,0.14);

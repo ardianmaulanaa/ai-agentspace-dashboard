@@ -4,6 +4,16 @@ AI AgentSpace Dashboard adalah aplikasi backend + dashboard portfolio untuk meng
 
 Project ini disesuaikan dengan rubrik Backend Study Group: autentikasi, RBAC, relasi database, validasi request, struktur API modular, dokumentasi OpenAPI, dan fitur bonus seperti upload attachment, search/filter di UI, serta rate limiting login.
 
+## Screenshot
+
+### Login
+
+<img src="docs/screenshots/login.png" alt="Halaman login AI AgentSpace Dashboard" width="900" />
+
+### Dashboard
+
+<img src="docs/screenshots/dashboard.png" alt="Halaman dashboard AI AgentSpace" width="900" />
+
 ## Topik
 
 Topik bebas: **AI Workspace & Agent Management Dashboard**.

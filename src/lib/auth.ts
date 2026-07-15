@@ -1,4 +1,9 @@
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import {
+  createHmac,
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+} from "node:crypto";
 import { NextResponse } from "next/server";
 
 export const DASHBOARD_ACCESS_COOKIE = "agentspace_access";
@@ -63,7 +68,10 @@ function safeEqualString(actual: string | undefined, expected: string) {
   const actualBuffer = Buffer.from(actual);
   const expectedBuffer = Buffer.from(expected);
 
-  return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
+  return (
+    actualBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(actualBuffer, expectedBuffer)
+  );
 }
 
 function base64UrlEncode(value: Buffer | string) {
@@ -82,26 +90,39 @@ function base64UrlDecode(value: string) {
 }
 
 function signJwt(unsignedToken: string) {
-  return base64UrlEncode(createHmac("sha256", getDashboardJwtSecret()).update(unsignedToken).digest());
+  return base64UrlEncode(
+    createHmac("sha256", getDashboardJwtSecret())
+      .update(unsignedToken)
+      .digest(),
+  );
 }
 
-function createDashboardJwt(user: DashboardUser, type: DashboardJwtPayload["typ"], ttlSeconds: number) {
+function createDashboardJwt(
+  user: DashboardUser,
+  type: DashboardJwtPayload["typ"],
+  ttlSeconds: number,
+) {
   const now = Math.floor(Date.now() / 1000);
   const header = base64UrlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payload = base64UrlEncode(JSON.stringify({
-    username: user.username,
-    displayName: user.displayName,
-    role: user.role,
-    typ: type,
-    iat: now,
-    exp: now + ttlSeconds,
-  } satisfies DashboardJwtPayload));
+  const payload = base64UrlEncode(
+    JSON.stringify({
+      username: user.username,
+      displayName: user.displayName,
+      role: user.role,
+      typ: type,
+      iat: now,
+      exp: now + ttlSeconds,
+    } satisfies DashboardJwtPayload),
+  );
   const unsignedToken = `${header}.${payload}`;
 
   return `${unsignedToken}.${signJwt(unsignedToken)}`;
 }
 
-export function verifyDashboardJwt(token: string | undefined, expectedType: DashboardJwtPayload["typ"]) {
+export function verifyDashboardJwt(
+  token: string | undefined,
+  expectedType: DashboardJwtPayload["typ"],
+) {
   if (!token || !getDashboardJwtSecret()) {
     return null;
   }
@@ -128,7 +149,11 @@ export function verifyDashboardJwt(token: string | undefined, expectedType: Dash
       return null;
     }
 
-    if (parsed.role !== "admin" && parsed.role !== "owner" && parsed.role !== "member") {
+    if (
+      parsed.role !== "admin" &&
+      parsed.role !== "owner" &&
+      parsed.role !== "member"
+    ) {
       return null;
     }
 
@@ -176,22 +201,33 @@ export function verifyDashboardPassword(password: string) {
   return safeEqualString(password, getDashboardPassword());
 }
 
-export function setDashboardSessionCookies(response: NextResponse, user: DashboardUser) {
-  response.cookies.set(DASHBOARD_ACCESS_COOKIE, createDashboardJwt(user, "access", ACCESS_TOKEN_TTL_SECONDS), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: ACCESS_TOKEN_TTL_SECONDS,
-  });
+export function setDashboardSessionCookies(
+  response: NextResponse,
+  user: DashboardUser,
+) {
+  response.cookies.set(
+    DASHBOARD_ACCESS_COOKIE,
+    createDashboardJwt(user, "access", ACCESS_TOKEN_TTL_SECONDS),
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: ACCESS_TOKEN_TTL_SECONDS,
+    },
+  );
 
-  response.cookies.set(DASHBOARD_REFRESH_COOKIE, createDashboardJwt(user, "refresh", REFRESH_TOKEN_TTL_SECONDS), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: REFRESH_TOKEN_TTL_SECONDS,
-  });
+  response.cookies.set(
+    DASHBOARD_REFRESH_COOKIE,
+    createDashboardJwt(user, "refresh", REFRESH_TOKEN_TTL_SECONDS),
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: REFRESH_TOKEN_TTL_SECONDS,
+    },
+  );
 }
 
 export function isDashboardAccessToken(token: string | undefined) {
@@ -211,8 +247,8 @@ export function getCookieValue(cookieHeader: string | null, name: string) {
 
   return cookieHeader
     .split(";")
-    .map(cookie => cookie.trim())
-    .find(cookie => cookie.startsWith(`${name}=`))
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith(`${name}=`))
     ?.slice(name.length + 1);
 }
 
@@ -220,7 +256,9 @@ export function getDashboardRequestRole(request: Request) {
   return getDashboardRequestUser(request)?.role || null;
 }
 
-export function getDashboardRequestUser(request: Request): DashboardUser | null {
+export function getDashboardRequestUser(
+  request: Request,
+): DashboardUser | null {
   const cookieHeader = request.headers.get("cookie");
   const accessToken =
     getCookieValue(cookieHeader, DASHBOARD_ACCESS_COOKIE) ||
@@ -238,7 +276,10 @@ export function isDashboardRequestAuthenticated(request: Request) {
   return Boolean(getDashboardRequestRole(request));
 }
 
-export function isDashboardRequestAuthorized(request: Request, allowedRoles: DashboardRole[]) {
+export function isDashboardRequestAuthorized(
+  request: Request,
+  allowedRoles: DashboardRole[],
+) {
   const role = getDashboardRequestRole(request);
 
   return Boolean(role && allowedRoles.includes(role));
