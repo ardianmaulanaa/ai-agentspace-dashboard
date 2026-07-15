@@ -67,8 +67,6 @@ http://localhost:3000/api/docs/openapi
 
 ## Environment
 
-Buat file `.env` di root project. File `.env` tidak perlu dikomit.
-
 Contoh konfigurasi:
 
 ```env
@@ -93,8 +91,6 @@ OPENCLAW_AGENT_ID=main
 OPENCLAW_SESSION_KEY=agent:main:dashboard
 OPENCLAW_AGENT_RESPONSE_MODE=cli
 ```
-
-Password fallback lokal disarankan memakai bcrypt. Contoh membuat hash:
 
 ```bash
 node -e "const bcrypt=require('bcryptjs'); console.log(bcrypt.hashSync('password-demo', 12))"
