@@ -67,7 +67,7 @@ http://localhost:3000/api/docs/openapi
 
 ## Environment
 
-Contoh konfigurasi:
+konfigurasi:
 
 ```env
 DASHBOARD_USERNAME=ardian
