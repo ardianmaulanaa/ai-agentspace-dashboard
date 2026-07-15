@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { Fragment, useState, useRef, useEffect } from "react";
 import type { ChangeEvent, ClipboardEvent, FormEvent, ReactNode } from "react";
 import Image from "next/image";
 import { AppHeaderShell } from "@/components/dashboard/AppHeaderShell";
@@ -142,7 +142,7 @@ type Profile = {
   app?: boolean;
 };
 
-type AgentName = "MASBRE" | "MASBRO" | "MASSEH" | "GPT" | "CLAUDE" | "GEMINI" | "QWEN" | "DEEPSEEK" | "GROK";
+type AgentName = "MASBRE" | "MASBRO" | "MASSEH" | "GPT" | "CLAUDE" | "GEMINI" | "NVIDIA" | "QWEN" | "DEEPSEEK" | "GROK";
 type AgentAccessLevel = "viewer" | "operator" | "admin";
 
 const ACCENTS: Accent[] = [
@@ -201,12 +201,13 @@ const profiles: Profile[] = [
   { name: "GPT", role: "OpenAI generalist", initials: "GP", accent: ["#14b8a6","#134e4a"], status: "online", app: true },
   { name: "CLAUDE", role: "Anthropic reasoning", initials: "CL", accent: ["#2dd4bf","#0f766e"], status: "online", app: true },
   { name: "GEMINI", role: "Google multimodal", initials: "GM", accent: ["#5eead4","#115e59"], status: "online", app: true },
+  { name: "NVIDIA", role: "NVIDIA Nemotron", initials: "NV", accent: ["#76b900","#14532d"], status: "online", app: true },
   { name: "QWEN", role: "Alibaba coding", initials: "QW", accent: ["#14b8a6","#0f766e"], status: "online", app: true },
   { name: "DEEPSEEK", role: "DeepSeek reasoning", initials: "DS", accent: ["#2dd4bf","#134e4a"], status: "online", app: true },
   { name: "GROK", role: "xAI realtime style", initials: "GX", accent: ["#64748b","#334155"], status: "online", app: true },
 ];
 
-const AGENT_OPTIONS: AgentName[] = ["MASBRE", "MASBRO", "MASSEH", "GPT", "CLAUDE", "GEMINI", "QWEN", "DEEPSEEK", "GROK"];
+const AGENT_OPTIONS: AgentName[] = ["MASBRE", "MASBRO", "MASSEH", "GPT", "CLAUDE", "GEMINI", "NVIDIA", "QWEN", "DEEPSEEK", "GROK"];
 
 const initialAgentAccess = AGENT_OPTIONS.reduce(
   (access, agent) => ({ ...access, [agent]: agent === "MASBRE" ? "admin" : "operator" }),
@@ -431,6 +432,8 @@ DASHBOARD_ROLE=admin
 DASHBOARD_JWT_SECRET=
 DASHBOARD_PASSWORD_HASH=
 DASHBOARD_PASSWORD=
+LOGIN_RATE_LIMIT_MAX_ATTEMPTS=5
+LOGIN_RATE_LIMIT_WINDOW_SECONDS=60
 OPENCLAW_CLI_PATH=openclaw
 OPENCLAW_PROFILE=masbre
 OPENCLAW_AGENT_ID=main
@@ -444,6 +447,28 @@ OPENCLAW_MASBRO_SESSION_KEY=agent:main:dashboard-masbro
 OPENCLAW_MASSEH_PROFILE=masseh
 OPENCLAW_MASSEH_AGENT_ID=main
 OPENCLAW_MASSEH_SESSION_KEY=agent:main:dashboard-masseh
+OPENCLAW_GPT_PROFILE=gpt
+OPENCLAW_GPT_AGENT_ID=main
+OPENCLAW_GPT_SESSION_KEY=agent:main:dashboard-gpt
+OPENCLAW_CLAUDE_PROFILE=claude
+OPENCLAW_CLAUDE_AGENT_ID=main
+OPENCLAW_CLAUDE_SESSION_KEY=agent:main:dashboard-claude
+OPENCLAW_GEMINI_PROFILE=gemini
+OPENCLAW_GEMINI_AGENT_ID=main
+OPENCLAW_GEMINI_SESSION_KEY=agent:main:dashboard-gemini
+OPENCLAW_NVIDIA_PROFILE=masbro
+OPENCLAW_NVIDIA_AGENT_ID=main
+OPENCLAW_NVIDIA_SESSION_KEY=agent:main:dashboard-nvidia
+OPENCLAW_QWEN_PROFILE=qwen
+OPENCLAW_QWEN_AGENT_ID=main
+OPENCLAW_QWEN_SESSION_KEY=agent:main:dashboard-qwen
+OPENCLAW_DEEPSEEK_PROFILE=deepseek
+OPENCLAW_DEEPSEEK_AGENT_ID=main
+OPENCLAW_DEEPSEEK_SESSION_KEY=agent:main:dashboard-deepseek
+OPENCLAW_GROK_PROFILE=grok
+OPENCLAW_GROK_AGENT_ID=main
+OPENCLAW_GROK_SESSION_KEY=agent:main:dashboard-grok
+OPENCLAW_AGENT_RESPONSE_MODE=cli
 OPENCLAW_AGENT_TIMEOUT_SECONDS=120
 OPENCLAW_GATEWAY_URL=
 OPENCLAW_API_KEY=
@@ -501,7 +526,7 @@ export default function AgentSpaceDashboard() {
   const [draft, setDraft] = useState("");
   const [attachedImage, setAttachedImage] = useState<AttachedImage | null>(null);
   const [rightPanel, setRightPanel] = useState("profiles");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [hoveredChannel, setHoveredChannel] = useState<string | null>(null);
   const [channelSearch, setChannelSearch] = useState("");
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
@@ -1220,7 +1245,7 @@ export default function AgentSpaceDashboard() {
             message.id === tempId
               ? {
                   ...message,
-                  text: `OpenClaw gagal dipanggil: ${error instanceof Error ? error.message : "Unknown error"}`,
+                  text: "Maaf mas, agent OpenClaw belum bisa dipanggil sekarang. Cek konfigurasi agent atau coba lagi nanti.",
                 }
               : message,
           ),
@@ -1878,6 +1903,80 @@ export default function AgentSpaceDashboard() {
     return parts;
   }
 
+  function renderInlineFormattedText(text: string, keyPrefix: string) {
+    return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
+      if (!part) return null;
+
+      const isBold = part.startsWith("**") && part.endsWith("**");
+      const content = isBold ? part.slice(2, -2) : part;
+      const renderedContent = renderHighlightedText(content);
+
+      if (isBold) {
+        return (
+          <strong
+            key={`${keyPrefix}-bold-${index}`}
+            style={{ fontWeight: 900, color: "var(--text-main)" }}
+          >
+            {renderedContent}
+          </strong>
+        );
+      }
+
+      return <Fragment key={`${keyPrefix}-text-${index}`}>{renderedContent}</Fragment>;
+    });
+  }
+
+  function renderFormattedMessageText(text: string) {
+    return text
+      .trimEnd()
+      .split(/\n{2,}/)
+      .map((block, blockIndex) => {
+        const lines = block
+          .split("\n")
+          .map(line => line.trimEnd())
+          .filter(Boolean);
+
+        if (lines.length === 0) return null;
+
+        const isBulletList = lines.every(line => /^\s*[-*]\s+/.test(line));
+
+        if (isBulletList) {
+          return (
+            <ul
+              key={`message-list-${blockIndex}`}
+              style={{
+                margin: blockIndex === 0 ? "0 0 8px 0" : "8px 0",
+                paddingLeft: 18,
+              }}
+            >
+              {lines.map((line, lineIndex) => (
+                <li key={`message-list-${blockIndex}-${lineIndex}`} style={{ margin: "4px 0" }}>
+                  {renderInlineFormattedText(
+                    line.replace(/^\s*[-*]\s+/, ""),
+                    `message-list-${blockIndex}-${lineIndex}`,
+                  )}
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        return lines.map((line, lineIndex) => (
+          <p
+            key={`message-paragraph-${blockIndex}-${lineIndex}`}
+            style={{
+              margin:
+                blockIndex === 0 && lineIndex === 0
+                  ? 0
+                  : "8px 0 0",
+            }}
+          >
+            {renderInlineFormattedText(line, `message-paragraph-${blockIndex}-${lineIndex}`)}
+          </p>
+        ));
+      });
+  }
+
   const activeWsData = workspaces.find(w => w.id === activeWs) || workspaces[0];
   const accent = ACCENTS[activeWsData.accentIdx];
   const isLightTheme = themeMode === "light";
@@ -1919,7 +2018,7 @@ export default function AgentSpaceDashboard() {
         rail={(
           <>
         <div style={{
-          width: isMobile ? 40 : 46, height: isMobile ? 40 : 46, borderRadius: 15, marginBottom: 6,
+          width: isMobile ? 46 : 46, height: isMobile ? 46 : 46, borderRadius: 15, marginBottom: 6,
           background: `linear-gradient(135deg, ${accent.from}, ${accent.to})`,
           display: "flex", alignItems: "center", justifyContent: "center",
           boxShadow: "none",
@@ -1941,10 +2040,10 @@ export default function AgentSpaceDashboard() {
           return (
             <div
               key={ws.id}
-              style={{ position: "relative", width: isMobile ? 38 : 44, height: isMobile ? 38 : 44 }}
+              style={{ position: "relative", width: isMobile ? 44 : 44, height: isMobile ? 44 : 44 }}
             >
               <button onClick={() => setActiveWs(ws.id)} title={ws.name} style={{
-                width: isMobile ? 38 : 44, height: isMobile ? 38 : 44, borderRadius: isActive ? 14 : 20,
+                width: isMobile ? 44 : 44, height: isMobile ? 44 : 44, borderRadius: isActive ? 14 : 20,
                 background: isActive ? `linear-gradient(135deg, ${wAccent.from}, ${wAccent.to})` : "var(--bg-btn-ghost)",
                 border: isActive ? "none" : "1px solid var(--border-subtle)",
                 color: isActive ? "white" : "var(--text-muted)",
@@ -1989,7 +2088,7 @@ export default function AgentSpaceDashboard() {
           title="Add workspace"
           onClick={() => setShowWorkspaceForm(true)}
           style={{
-          width: isMobile ? 38 : 44, height: isMobile ? 38 : 44, borderRadius: 20, marginTop: 4,
+          width: isMobile ? 44 : 44, height: isMobile ? 44 : 44, borderRadius: 20, marginTop: 4,
           background: `${accent.from}10`,
           border: `1px dashed ${accent.from}44`,
           color: accent.from, cursor: "pointer", fontSize: 22,
@@ -2092,7 +2191,12 @@ export default function AgentSpaceDashboard() {
                 <div style={{ fontSize: 11, color: "var(--text-muted)" }}>AI workspace</div>
               </div>
             </div>
-            <button onClick={() => setSidebarCollapsed(true)} style={{
+            <button
+              type="button"
+              title={sidebarCollapsed ? "Buka sidebar" : "Tutup sidebar"}
+              aria-label={sidebarCollapsed ? "Buka sidebar" : "Tutup sidebar"}
+              onClick={() => setSidebarCollapsed(current => !current)}
+              style={{
               background: "none", border: "none", color: "var(--text-muted)",
               cursor: "pointer", padding: 4, borderRadius: 6, lineHeight: 0,
               transition: "color 0.2s",
@@ -2100,7 +2204,11 @@ export default function AgentSpaceDashboard() {
               onMouseEnter={e => e.currentTarget.style.color = "var(--text-main)"}
               onMouseLeave={e => e.currentTarget.style.color = "var(--text-muted)"}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <line x1="4" y1="7" x2="20" y2="7"/>
+                <line x1="4" y1="12" x2="20" y2="12"/>
+                <line x1="4" y1="17" x2="20" y2="17"/>
+              </svg>
             </button>
           </div>
           <div style={{
@@ -2328,7 +2436,7 @@ export default function AgentSpaceDashboard() {
         minWidth: 0,
         zIndex: 8,
         position: "relative",
-        paddingLeft: isMobile ? 58 : 72,
+        paddingLeft: isMobile ? 64 : 72,
       }}>
 	        <div style={{
 	          minHeight: isMobile ? 104 : 68, flexShrink: 0, display: "flex", alignItems: "center",
@@ -2354,7 +2462,7 @@ export default function AgentSpaceDashboard() {
             </button>
 
           <div style={{
-            width: 36, height: 36, borderRadius: 12,
+            width: isMobile ? 40 : 36, height: isMobile ? 40 : 36, borderRadius: 12,
             background: `linear-gradient(135deg, ${accent.from}20, ${accent.to}12)`,
             border: `1px solid ${accent.from}44`,
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -2384,8 +2492,8 @@ export default function AgentSpaceDashboard() {
               title="Open menu"
               onClick={() => openRightPanel("hub")}
               style={{
-                width: isMobile ? 36 : 40,
-                height: isMobile ? 36 : 40,
+                width: isMobile ? 44 : 40,
+                height: isMobile ? 44 : 40,
                 borderRadius: 12,
                 background: rightPanel === "hub" && rightPanelOpen ? `${accent.from}18` : "var(--bg-btn-ghost)",
                 border: rightPanel === "hub" && rightPanelOpen ? `1px solid ${accent.from}55` : "1px solid var(--border-subtle)",
@@ -2920,7 +3028,7 @@ export default function AgentSpaceDashboard() {
                       size={36}
                     />
                     <div style={{
-                      maxWidth: isMobile ? "86%" : "68%", borderRadius: 20,
+                      maxWidth: isMobile ? "92%" : "68%", borderRadius: 20,
                       borderTopLeftRadius: msg.ai ? 6 : 20,
                       borderTopRightRadius: msg.ai ? 20 : 6,
                       padding: "13px 17px",
@@ -3028,7 +3136,7 @@ export default function AgentSpaceDashboard() {
                         </div>
                       ) : msg.text && (
                         <div style={{ fontSize: 13.5, color: "var(--text-main)", opacity: 0.9, lineHeight: 1.68, marginTop: msg.image ? 10 : 0 }}>
-                          {renderHighlightedText(msg.text)}
+                          {renderFormattedMessageText(msg.text)}
                         </div>
                       )}
                       {msg.reactions && Object.keys(msg.reactions).length > 0 && (
@@ -3056,7 +3164,7 @@ export default function AgentSpaceDashboard() {
               </div>
             </div>
             <div style={{
-              padding: isMobile ? "10px 12px 14px" : "14px 24px 20px",
+              padding: isMobile ? "12px 12px 16px" : "14px 24px 20px",
               borderTop: "1px solid var(--border-subtle)",
               background: "var(--composer-bg)",
               backdropFilter: "blur(20px)",
@@ -3074,7 +3182,8 @@ export default function AgentSpaceDashboard() {
               <form aria-busy={agentInvoking && isAgentChannel} onSubmit={sendMessage} style={{
                 background: "var(--surface-strong)",
                 border: "1px solid var(--border-subtle)",
-                borderRadius: 20, padding: "10px 14px",
+                borderRadius: isMobile ? 18 : 20,
+                padding: isMobile ? "10px 12px" : "10px 14px",
                 transition: "border-color 0.2s, box-shadow 0.2s",
                 boxShadow: "var(--shadow-composer)",
               }}
@@ -3155,7 +3264,7 @@ export default function AgentSpaceDashboard() {
                     }}>×</button>
                   </div>
                 )}
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 10 }}>
                   <input
                     ref={imageInputRef}
                     type="file"
@@ -3163,7 +3272,7 @@ export default function AgentSpaceDashboard() {
                     style={{ display: "none" }}
                   />
                   <button type="button" onClick={() => imageInputRef.current?.click()} style={{
-                    width: 32, height: 32, borderRadius: 11,
+                    width: isMobile ? 42 : 32, height: isMobile ? 42 : 32, borderRadius: 11,
                     background: "var(--bg-btn-ghost)", border: "1px solid var(--border-subtle)", padding: 0, cursor: "pointer",
                     color: "var(--text-muted)", lineHeight: 0, transition: "color 0.2s",
                     display: "grid", placeItems: "center", flexShrink: 0,
@@ -3182,12 +3291,12 @@ export default function AgentSpaceDashboard() {
 	                    style={{
 	                      flex: 1, background: "none", border: "none",
 	                      fontFamily: "'Space Grotesk', sans-serif",
-	                      fontSize: 14, color: "var(--text-main)", outline: "none",
-                        height: 34,
+	                      fontSize: isMobile ? 15 : 14, color: "var(--text-main)", outline: "none",
+                        height: isMobile ? 42 : 34,
 	                    }}
 	                  />
 	                  <button type="submit" disabled={!draft.trim() && !attachedImage} style={{
-	                    width: 36, height: 36, borderRadius: 12, border: "none", cursor: (!draft.trim() && !attachedImage) ? "not-allowed" : "pointer",
+	                    width: isMobile ? 44 : 36, height: isMobile ? 44 : 36, borderRadius: 12, border: "none", cursor: (!draft.trim() && !attachedImage) ? "not-allowed" : "pointer",
 	                    background: (draft.trim() || attachedImage) ? `linear-gradient(135deg, ${accent.from}, ${accent.to})` : "var(--bg-btn-ghost)",
 	                    color: (draft.trim() || attachedImage) ? "white" : "var(--text-muted)",
 	                    display: "flex", alignItems: "center", justifyContent: "center",
@@ -4398,19 +4507,19 @@ export default function AgentSpaceDashboard() {
 	          --bg-header: rgba(255, 255, 255, 0.82);
 	          --bg-input: rgba(15, 23, 42, 0.055);
 	          --bg-popover: #ffffff;
-	          --bg-btn-ghost: rgba(15, 23, 42, 0.045);
-          --bg-btn-ghost-hover: rgba(15, 23, 42, 0.075);
-          --surface: rgba(255, 255, 255, 0.78);
-          --surface-strong: rgba(255, 255, 255, 0.92);
-	          --composer-bg: linear-gradient(to top, rgba(247,248,250,0.96), rgba(247,248,250,0.74));
-	          --text-main: #162033;
+	          --bg-btn-ghost: rgba(15, 23, 42, 0.055);
+          --bg-btn-ghost-hover: rgba(15, 23, 42, 0.090);
+          --surface: rgba(255, 255, 255, 0.80);
+          --surface-strong: rgba(255, 255, 255, 0.95);
+	          --composer-bg: linear-gradient(to top, rgba(237,244,255,0.97), rgba(237,244,255,0.76));
+	          --text-main: #0f172a;
 	          --text-muted: #64748b;
 	          --border-subtle: rgba(15, 23, 42, 0.10);
           --grid-line: rgba(15, 23, 42, 0.055);
           --shadow-panel: 14px 0 34px rgba(15, 23, 42, 0.07);
           --shadow-card: 0 24px 60px rgba(15, 23, 42, 0.10), 0 1px 0 rgba(255,255,255,0.9) inset;
           --shadow-soft: 0 12px 30px rgba(15,23,42,0.08);
-          --shadow-message: 0 14px 34px rgba(15,23,42,0.08);
+          --shadow-message: 0 14px 34px rgba(15,23,42,0.09);
           --shadow-composer: 0 20px 46px rgba(15,23,42,0.12), 0 1px 0 rgba(255,255,255,0.9) inset;
           --shadow-inset: 0 1px 0 rgba(255,255,255,0.8) inset;
         }
@@ -4422,6 +4531,7 @@ export default function AgentSpaceDashboard() {
 	        input::placeholder { color: var(--text-muted) !important; opacity: 0.7; }
           button, input, textarea, select {
             -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
           }
           button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
             outline: 2px solid rgba(34, 211, 238, 0.55);
@@ -4435,6 +4545,25 @@ export default function AgentSpaceDashboard() {
 	        .header-actions::-webkit-scrollbar {
 	          display: none;
 	        }
+          @media (pointer: coarse), (max-width: 820px) {
+            .agentspace-shell button {
+              min-width: 42px;
+              min-height: 42px;
+            }
+
+            .agentspace-shell input,
+            .agentspace-shell textarea,
+            .agentspace-shell select {
+              min-height: 42px;
+              font-size: 16px !important;
+            }
+
+            .agentspace-shell button[title^="Hapus"],
+            .agentspace-shell button[aria-label^="Hapus"] {
+              min-width: 24px;
+              min-height: 24px;
+            }
+          }
 	      `}</style>
     </div>
   );

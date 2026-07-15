@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { getDashboardRequestUser, isDashboardRequestAuthenticated } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { resolveChannelId, resolveWorkspaceId } from "@/lib/supabase-records";
-import { optionalString, readJsonObject, requiredString, validationError } from "@/lib/validation";
+import {
+  optionalString,
+  readJsonObject,
+  requiredString,
+  validateImageDataUrlAttachment,
+  validationError,
+} from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -146,17 +152,18 @@ export async function POST(request: Request) {
   const attachmentName = optionalString(body, "attachmentName");
   const attachmentMime = optionalString(body, "attachmentMime");
   const replyTo = optionalString(body, "replyTo");
+  const attachmentValidation = validateImageDataUrlAttachment({
+    data: attachmentData,
+    mime: attachmentMime,
+    name: attachmentName,
+  });
 
   if (contentResult.error && !attachmentName) {
     return validationError("Message content or attachment is required.");
   }
 
-  if (attachmentData && !attachmentData.startsWith("data:")) {
-    return validationError("Attachment data must be a data URL.");
-  }
-
-  if (attachmentMime && !attachmentMime.startsWith("image/")) {
-    return validationError("Only image attachments are supported.");
+  if (!attachmentValidation.ok) {
+    return validationError(attachmentValidation.error);
   }
 
   const supabase = createServerSupabaseClient();
@@ -213,6 +220,7 @@ export async function POST(request: Request) {
         attachmentData: attachmentData || null,
         attachmentName: attachmentName || null,
         attachmentMime: attachmentMime || null,
+        attachmentSizeBytes: attachmentValidation.sizeBytes || null,
         replyTo: replyTo || null,
       },
     })

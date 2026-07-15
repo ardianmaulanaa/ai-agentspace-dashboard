@@ -14,7 +14,11 @@ function isValidEmail(email: string) {
 }
 
 function isStrongEnoughPassword(password: string) {
-  return password.length >= 8;
+  return (
+    password.length >= 8 &&
+    /[A-Za-z]/.test(password) &&
+    /\d/.test(password)
+  );
 }
 
 export async function POST(request: Request) {
@@ -38,7 +42,7 @@ export async function POST(request: Request) {
   }
 
   if (!isStrongEnoughPassword(password)) {
-    return validationError("Password must be at least 8 characters.");
+    return validationError("Password must be at least 8 characters and contain letters plus numbers.");
   }
 
   if (password !== confirmPassword) {

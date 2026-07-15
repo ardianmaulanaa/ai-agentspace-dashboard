@@ -7,32 +7,82 @@ import {
   verifyDashboardPassword,
 } from "@/lib/auth";
 import { createAuthSupabaseClient } from "@/lib/supabase";
-import { readJsonObject, validationError } from "@/lib/validation";
+import { readJsonObject } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
-const LOGIN_WINDOW_MS = 60_000;
-const LOGIN_MAX_ATTEMPTS = 8;
+
+function getLoginWindowMs() {
+  const seconds = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_SECONDS || 60);
+
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 60_000;
+}
+
+function getLoginMaxAttempts() {
+  const attempts = Number(process.env.LOGIN_RATE_LIMIT_MAX_ATTEMPTS || 5);
+
+  return Number.isFinite(attempts) && attempts > 0 ? attempts : 5;
+}
 
 function getClientKey(request: Request, username: string) {
   const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   const realIp = request.headers.get("x-real-ip")?.trim();
 
-  return `${forwardedFor || realIp || "local"}:${username || "unknown"}`;
+  return `${forwardedFor || realIp || "local"}:${username.toLowerCase() || "unknown"}`;
 }
 
 function isRateLimited(key: string) {
   const now = Date.now();
   const attempt = loginAttempts.get(key);
+  const maxAttempts = getLoginMaxAttempts();
 
   if (!attempt || attempt.resetAt <= now) {
-    loginAttempts.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
-    return false;
+    return { limited: false, remaining: maxAttempts, retryAfterSeconds: 0 };
+  }
+
+  const retryAfterSeconds = Math.ceil((attempt.resetAt - now) / 1000);
+
+  return {
+    limited: attempt.count >= maxAttempts,
+    remaining: Math.max(0, maxAttempts - attempt.count),
+    retryAfterSeconds,
+  };
+}
+
+function recordFailedLogin(key: string) {
+  const now = Date.now();
+  const attempt = loginAttempts.get(key);
+  const windowMs = getLoginWindowMs();
+
+  if (!attempt || attempt.resetAt <= now) {
+    loginAttempts.set(key, { count: 1, resetAt: now + windowMs });
+    return;
   }
 
   attempt.count += 1;
-  return attempt.count > LOGIN_MAX_ATTEMPTS;
+}
+
+function clearLoginAttempts(key: string) {
+  loginAttempts.delete(key);
+}
+
+function createRateLimitResponse(retryAfterSeconds: number) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: "Terlalu banyak percobaan login. Tunggu sebentar sebelum coba lagi.",
+      retryAfterSeconds,
+    },
+    {
+      status: 429,
+      headers: {
+        "Retry-After": String(retryAfterSeconds),
+        "X-RateLimit-Limit": String(getLoginMaxAttempts()),
+        "X-RateLimit-Reset": String(Math.ceil((Date.now() + retryAfterSeconds * 1000) / 1000)),
+      },
+    },
+  );
 }
 
 export async function POST(request: Request) {
@@ -59,8 +109,10 @@ export async function POST(request: Request) {
     );
   }
 
-  if (isRateLimited(clientKey)) {
-    return validationError("Too many login attempts. Please wait before retrying.", 429);
+  const rateLimit = isRateLimited(clientKey);
+
+  if (rateLimit.limited) {
+    return createRateLimitResponse(rateLimit.retryAfterSeconds);
   }
 
   let loginUser = user;
@@ -92,11 +144,15 @@ export async function POST(request: Request) {
   }
 
   if (!passwordValid) {
+    recordFailedLogin(clientKey);
+
     return NextResponse.json(
       { ok: false, error: "Email atau password salah." },
       { status: 401 },
     );
   }
+
+  clearLoginAttempts(clientKey);
 
   const response = NextResponse.json({
     ok: true,

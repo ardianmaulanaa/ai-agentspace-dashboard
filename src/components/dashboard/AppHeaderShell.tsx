@@ -17,8 +17,8 @@ export function AppHeaderShell({
   rail,
   children,
 }: AppHeaderShellProps) {
-  const railWidth = isMobile ? 58 : 72;
-  const sidebarWidth = isMobile ? "min(286px, calc(100vw - 58px))" : 258;
+  const railWidth = isMobile ? 64 : 72;
+  const sidebarWidth = isMobile ? "min(320px, calc(100vw - 64px))" : 258;
 
   return (
     <>
@@ -31,8 +31,8 @@ export function AppHeaderShell({
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          padding: isMobile ? "12px 0" : "18px 0",
-          gap: isMobile ? 8 : 10,
+          padding: isMobile ? "14px 0" : "18px 0",
+          gap: isMobile ? 10 : 10,
           zIndex: 32,
           position: "absolute",
           left: 0,

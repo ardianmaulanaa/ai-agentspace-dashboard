@@ -51,7 +51,19 @@ export async function GET() {
           responses: {
             "200": { description: "Authenticated", content: { "application/json": { schema: jsonResponse } } },
             "401": { description: "Invalid credentials" },
-            "429": { description: "Too many attempts" },
+            "429": {
+              description: "Too many login attempts",
+              headers: {
+                "Retry-After": {
+                  description: "Seconds until the client may retry login",
+                  schema: { type: "integer", example: 60 },
+                },
+                "X-RateLimit-Limit": {
+                  description: "Maximum failed login attempts per window",
+                  schema: { type: "integer", example: 5 },
+                },
+              },
+            },
           },
         },
       },
@@ -69,8 +81,18 @@ export async function GET() {
                   properties: {
                     email: { type: "string", example: "member@agentspace.com" },
                     displayName: { type: "string", example: "Member One" },
-                    password: { type: "string", format: "password", minLength: 8 },
-                    confirmPassword: { type: "string", format: "password", minLength: 8 },
+                    password: {
+                      type: "string",
+                      format: "password",
+                      minLength: 8,
+                      description: "Must contain letters and numbers",
+                    },
+                    confirmPassword: {
+                      type: "string",
+                      format: "password",
+                      minLength: 8,
+                      description: "Must match password",
+                    },
                   },
                 },
               },
@@ -175,6 +197,71 @@ export async function GET() {
           },
         },
       },
+      "/api/workspace-members": {
+        get: {
+          tags: ["Workspace"],
+          summary: "List workspace members for admin/owner RBAC management",
+          parameters: [
+            { name: "workspaceId", in: "query", schema: { type: "string", example: "agentspace" } },
+          ],
+          responses: {
+            "200": { description: "Workspace members listed" },
+            "403": { description: "Admin or owner role required" },
+            "404": { description: "Workspace not found" },
+          },
+        },
+        post: {
+          tags: ["Workspace"],
+          summary: "Add or update workspace membership",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["userId"],
+                  properties: {
+                    workspaceId: { type: "string", example: "agentspace" },
+                    userId: { type: "string", description: "Supabase Auth user ID" },
+                    role: { type: "string", enum: ["admin", "owner", "member"], default: "member" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": { description: "Membership upserted" },
+            "400": { description: "Validation error" },
+            "403": { description: "Admin or owner role required" },
+            "404": { description: "Workspace or user not found" },
+          },
+        },
+        delete: {
+          tags: ["Workspace"],
+          summary: "Remove workspace membership",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["userId"],
+                  properties: {
+                    workspaceId: { type: "string", example: "agentspace" },
+                    userId: { type: "string", description: "Supabase Auth user ID" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Membership removed" },
+            "400": { description: "Validation error" },
+            "403": { description: "Admin or owner role required" },
+            "404": { description: "Workspace not found" },
+          },
+        },
+      },
       "/api/messages": {
         get: {
           tags: ["Messages"],
@@ -202,9 +289,16 @@ export async function GET() {
                     workspaceId: { type: "string" },
                     channelId: { type: "string" },
                     content: { type: "string" },
-                    attachmentData: { type: "string", description: "Image data URL" },
+                    attachmentData: {
+                      type: "string",
+                      description: "Base64 image data URL. Max 2 MB. Allowed MIME: image/png, image/jpeg, image/webp, image/gif.",
+                    },
                     attachmentName: { type: "string" },
-                    attachmentMime: { type: "string", example: "image/png" },
+                    attachmentMime: {
+                      type: "string",
+                      enum: ["image/png", "image/jpeg", "image/webp", "image/gif"],
+                      example: "image/png",
+                    },
                     replyTo: { type: "string" },
                   },
                 },

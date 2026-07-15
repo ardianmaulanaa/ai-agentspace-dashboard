@@ -1,10 +1,10 @@
 import {
   createHmac,
-  randomBytes,
   scryptSync,
   timingSafeEqual,
 } from "node:crypto";
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 
 export const DASHBOARD_ACCESS_COOKIE = "agentspace_access";
 export const DASHBOARD_REFRESH_COOKIE = "agentspace_refresh";
@@ -29,6 +29,7 @@ type DashboardJwtPayload = DashboardUser & {
 
 const ACCESS_TOKEN_TTL_SECONDS = 60 * 15;
 const REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7;
+const BCRYPT_SALT_ROUNDS = 12;
 
 export function getDashboardUser(): DashboardUser {
   return {
@@ -181,13 +182,14 @@ function verifyScryptPassword(password: string, hashValue: string) {
 }
 
 export function hashDashboardPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(password, salt, 64).toString("hex");
-
-  return `scrypt$${salt}$${hash}`;
+  return bcrypt.hashSync(password, BCRYPT_SALT_ROUNDS);
 }
 
 export function verifyPasswordHash(password: string, hashValue: string) {
+  if (hashValue.startsWith("$2a$") || hashValue.startsWith("$2b$") || hashValue.startsWith("$2y$")) {
+    return bcrypt.compareSync(password, hashValue);
+  }
+
   return verifyScryptPassword(password, hashValue);
 }
 
@@ -195,7 +197,7 @@ export function verifyDashboardPassword(password: string) {
   const passwordHash = getDashboardPasswordHash();
 
   if (passwordHash) {
-    return verifyScryptPassword(password, passwordHash);
+    return verifyPasswordHash(password, passwordHash);
   }
 
   return safeEqualString(password, getDashboardPassword());

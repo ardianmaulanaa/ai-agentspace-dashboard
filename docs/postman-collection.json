@@ -1,0 +1,146 @@
+{
+  "info": {
+    "name": "AI AgentSpace Dashboard API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "workspaceId", "value": "agentspace" },
+    { "key": "channelId", "value": "ide-project" },
+    { "key": "messageId", "value": "" },
+    { "key": "userId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth - Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"ardian@agentspace.com\",\n  \"password\": \"password-demo\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Auth - Me",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/auth/me"
+      }
+    },
+    {
+      "name": "Dashboard - Data",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/dashboard/data"
+      }
+    },
+    {
+      "name": "Workspace - Create Category",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/categories",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"name\": \"Demo Category\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Workspace - Create Channel",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/channels",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"category\": \"Portfolio\",\n  \"name\": \"demo-channel\",\n  \"type\": \"text\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Workspace Members - List",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/workspace-members?workspaceId={{workspaceId}}"
+      }
+    },
+    {
+      "name": "Workspace Members - Upsert",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/workspace-members",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"userId\": \"{{userId}}\",\n  \"role\": \"member\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Messages - List With Search",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/messages?workspaceId={{workspaceId}}&channelId={{channelId}}&page=1&limit=20&search=dashboard"
+      }
+    },
+    {
+      "name": "Messages - Create",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/messages",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"channelId\": \"{{channelId}}\",\n  \"content\": \"Demo message from Postman\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Messages - Create With Image Attachment",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/messages",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"channelId\": \"{{channelId}}\",\n  \"content\": \"Demo attachment from Postman\",\n  \"attachmentData\": \"data:image/png;base64,iVBORw0KGgo=\",\n  \"attachmentName\": \"demo.png\",\n  \"attachmentMime\": \"image/png\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Forum - Create Post",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/forum-posts",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"channelId\": \"forum-review\",\n  \"title\": \"Demo forum post\",\n  \"body\": \"Testing forum workflow\",\n  \"tag\": \"Demo\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Agents - Invoke",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/agents/invoke",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"channelId\": \"{{channelId}}\",\n  \"agent\": \"MASBRE\",\n  \"message\": \"Beri ringkasan project ini\"\n}"
+        }
+      }
+    },
+    {
+      "name": "OpenAPI",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/docs/openapi"
+      }
+    }
+  ]
+}

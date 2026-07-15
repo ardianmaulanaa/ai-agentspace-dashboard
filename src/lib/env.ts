@@ -6,7 +6,7 @@ export type EnvCheck = {
 };
 
 type AgentBridgeStatus = {
-  label: "MASBRE" | "MASBRO" | "MASSEH" | "GPT" | "CLAUDE" | "GEMINI" | "QWEN" | "DEEPSEEK" | "GROK";
+  label: "MASBRE" | "MASBRO" | "MASSEH" | "GPT" | "CLAUDE" | "GEMINI" | "NVIDIA" | "QWEN" | "DEEPSEEK" | "GROK";
   profile: string;
   agentId: string;
   sessionKey: string;
@@ -156,6 +156,15 @@ export function getConfigStatus(): ConfigStatus {
       sessionKey: process.env.OPENCLAW_GEMINI_SESSION_KEY || "agent:main:dashboard-gemini",
       requiredProvider: "GEMINI_API_KEY",
       providerReady: providerReadyByKey.GEMINI_API_KEY,
+      configured: false,
+    },
+    {
+      label: "NVIDIA",
+      profile: process.env.OPENCLAW_NVIDIA_PROFILE || "masbro",
+      agentId: process.env.OPENCLAW_NVIDIA_AGENT_ID || "main",
+      sessionKey: process.env.OPENCLAW_NVIDIA_SESSION_KEY || "agent:main:dashboard-nvidia",
+      requiredProvider: "NVIDIA_API_KEY",
+      providerReady: providerReadyByKey.NVIDIA_API_KEY,
       configured: false,
     },
     {

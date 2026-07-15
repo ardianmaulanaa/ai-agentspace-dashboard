@@ -35,7 +35,7 @@ export function RightNavbarShell({
 
       <aside
         style={{
-          width: isMobile ? "min(430px, calc(100vw - 58px))" : 420,
+          width: isMobile ? "min(430px, calc(100vw - 64px))" : 420,
           flexShrink: 0,
           background: "var(--bg-sidebar)",
           borderLeft: "1px solid var(--border-subtle)",

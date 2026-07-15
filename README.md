@@ -70,15 +70,27 @@ DASHBOARD_ROLE=admin
 DASHBOARD_JWT_SECRET=
 DASHBOARD_PASSWORD_HASH=
 DASHBOARD_PASSWORD=
+LOGIN_RATE_LIMIT_MAX_ATTEMPTS=5
+LOGIN_RATE_LIMIT_WINDOW_SECONDS=60
 ```
 
-`DASHBOARD_PASSWORD_HASH` direkomendasikan untuk demo penilaian. Format yang didukung:
+`DASHBOARD_PASSWORD_HASH` direkomendasikan untuk demo penilaian. Format utama yang didukung adalah bcrypt:
 
 ```text
-scrypt$salt$hexhash
+$2b$12$...
+```
+
+Format legacy `scrypt$salt$hexhash` masih bisa dibaca supaya setup lama tidak rusak.
+
+Untuk membuat hash bcrypt cepat:
+
+```bash
+node -e "const bcrypt=require('bcryptjs'); console.log(bcrypt.hashSync('password-demo', 12))"
 ```
 
 `DASHBOARD_PASSWORD` tetap tersedia sebagai fallback lokal.
+
+Login memakai rate limiting in-memory per kombinasi IP dan email. Defaultnya maksimal 5 percobaan gagal dalam 60 detik, lalu API membalas `429` dengan header `Retry-After`.
 
 Supabase:
 
@@ -102,34 +114,72 @@ OPENCLAW_CLI_PATH=openclaw
 OPENCLAW_PROFILE=masbre
 OPENCLAW_AGENT_ID=main
 OPENCLAW_SESSION_KEY=agent:main:dashboard
+OPENCLAW_AGENT_RESPONSE_MODE=cli
 ```
+
+`OPENCLAW_AGENT_RESPONSE_MODE=cli` membuat chat diproses normal lewat OpenClaw CLI. Ubah ke `fast` hanya kalau ingin fallback lokal untuk demo cepat.
 
 ## Fitur Sesuai Rubrik
 
+## Checklist Penilaian
+
+Autentikasi & Keamanan (25%):
+
+- Auth JWT/session: access token dan refresh token HTTP-only cookie.
+- Keamanan password: Supabase Auth untuk user utama, bcrypt 12 rounds untuk fallback admin lokal.
+- RBAC: role `admin`, `owner`, `member` dari `user_metadata.role`; admin route memakai authorization helper.
+- Keamanan ekstra: login rate limiting per IP/email dengan status `429` dan header `Retry-After`.
+
+Kelengkapan & Logika Bisnis (30%):
+
+- Relasi DB: `workspaces`, `workspace_members`, `categories`, `channels`, `messages`, `forum_posts`, `forum_replies`.
+- Fitur utama: auth, dashboard data, category/channel, workspace member management, message, forum, agent invoke, admin user role, cleanup.
+- Validasi: helper payload JSON, required string, enum, attachment type/size/data URL, email, password strength.
+
+Kualitas & Struktur Kode (20%):
+
+- Arsitektur: route handler modular di `src/app/api`, shared helper di `src/lib`, route middleware di `src/proxy.ts`.
+- Error handling: status `400`, `401`, `403`, `404`, `409`, `429`, `500`, `502` sesuai kasus.
+- Keterbacaan: type dan helper dipisah, nama fungsi sesuai tanggung jawab.
+
+Dokumentasi & Pengujian (15%):
+
+- OpenAPI tersedia di `GET /api/docs/openapi`.
+- Postman Collection tersedia di `docs/postman-collection.json`.
+- Demo flow tersedia di bagian "Cara Demo".
+
+Bonus:
+
+- Attachment image data URL pada message dengan validasi mime, base64, dan ukuran.
+- Pagination, search, filtering di `GET /api/messages`.
+- Rate limiting login bisa diatur melalui `LOGIN_RATE_LIMIT_MAX_ATTEMPTS` dan `LOGIN_RATE_LIMIT_WINDOW_SECONDS`.
+
 ### 1. Autentikasi & Keamanan
 
-Status: sebagian besar sudah ada.
+Status: lengkap untuk kebutuhan rubrik.
 
 - Login memakai email Supabase Auth dan password. Fallback admin lokal masih tersedia untuk demo.
 - Register member baru melalui halaman `/register` dan Supabase Authentication Users.
 - Access token dan refresh token berbentuk JWT signed HMAC, disimpan di HTTP-only cookie.
-- Password utama dikelola oleh Supabase Auth. Fallback password admin mendukung hash scrypt.
+- Password utama dikelola oleh Supabase Auth. Fallback password admin mendukung bcrypt (`bcryptjs`, 12 salt rounds) dan legacy scrypt.
 - Password user hasil register dikelola oleh Supabase Auth, bukan file lokal.
+- Register mewajibkan password minimal 8 karakter dan mengandung huruf serta angka.
 - Session memakai HTTP-only JWT access cookie dan JWT refresh cookie.
 - Endpoint refresh tersedia di `POST /api/auth/refresh`.
 - Logout menghapus semua cookie auth.
-- Login memiliki in-memory rate limiting untuk mengurangi brute force.
+- Login memiliki in-memory rate limiting per IP/email untuk mengurangi brute force.
 - Role admin/owner/member disimpan di Supabase Auth `user_metadata.role`.
+- Route privat dashboard dilindungi `src/proxy.ts`; endpoint API privat dilindungi helper auth di route handler.
 - Admin bisa melihat user dan mengubah role melalui endpoint `/api/admin/users` dan panel Config.
 - Endpoint admin cleanup dibatasi untuk role `admin`.
 
-Yang belum dibuat penuh:
+Workspace membership:
 
-- Workspace membership belum menjadi endpoint CRUD tersendiri.
+- Workspace member management tersedia melalui `GET`, `POST`, dan `DELETE /api/workspace-members`.
 
 ### 2. Kelengkapan & Logika Bisnis
 
-Status: sudah ada untuk MVP.
+Status: lengkap untuk MVP.
 
 Entity utama:
 
@@ -147,26 +197,28 @@ Logika bisnis:
 - Dashboard mengambil workspace, category, channel, messages, forum post, dan replies dari Supabase.
 - User bisa membuat category.
 - User bisa membuat channel bertipe `text`, `forum`, atau `voice`.
-- User bisa membuat pesan dengan attachment image data URL.
+- Admin/owner bisa list, tambah/update, dan hapus member workspace.
+- User bisa membuat pesan dengan attachment image data URL tervalidasi.
 - User bisa list message dengan `page`, `limit`, `search`, dan `senderType`.
 - User bisa edit, pin, react, dan delete message.
 - User bisa membuat forum post dan reply.
 - User bisa invoke agent dan balasannya disimpan ke Supabase.
 
-Yang belum dibuat penuh:
-
-- Workspace member management belum menjadi endpoint terpisah.
+Endpoint workspace member management tersedia untuk menutup relasi M-to-M `workspace_members`.
 
 ### 3. Validasi Request
 
-Status: sudah dirapikan.
+Status: lengkap untuk endpoint inti.
 
 Route-route create/update sekarang memakai helper `src/lib/validation.ts` untuk:
 
 - Memastikan body adalah JSON object.
 - Memastikan field wajib tidak kosong.
 - Membatasi enum channel type.
-- Membatasi attachment ke image data URL.
+- Membatasi attachment ke image data URL base64.
+- Membatasi attachment ke PNG, JPEG, WebP, GIF.
+- Membatasi ukuran attachment maksimal 2 MB.
+- Membatasi register password minimal 8 karakter serta harus berisi huruf dan angka.
 - Mengembalikan HTTP 400 untuk bad request.
 
 ### 4. Struktur Kode
@@ -185,6 +237,7 @@ src/app/api/
   auth/refresh
   categories
   channels
+  workspace-members
   config/status
   dashboard/data
   docs/openapi
@@ -197,13 +250,16 @@ src/lib/
   supabase.ts
   supabase-records.ts
   validation.ts
+
+src/proxy.ts
+  route middleware untuk halaman privat
 ```
 
 Catatan: karena ini Next.js, struktur tidak memakai `controllers/routes/middlewares` Express, tetapi pemisahan tanggung jawabnya tetap ada melalui route handlers dan `src/lib`.
 
 ### 5. Error Handling
 
-Status: sudah ada di route handler.
+Status: sudah ada di route handler dan helper response.
 
 Contoh status code:
 
@@ -217,7 +273,7 @@ Contoh status code:
 
 ### 6. Dokumentasi API
 
-Status: sudah ada.
+Status: lengkap.
 
 OpenAPI JSON tersedia di:
 
@@ -225,16 +281,22 @@ OpenAPI JSON tersedia di:
 GET /api/docs/openapi
 ```
 
-Endpoint ini mendokumentasikan auth, dashboard data, category, channel, message, forum, agent invoke, dan admin cleanup.
+Endpoint ini mendokumentasikan auth, dashboard data, category, channel, workspace members, message, forum, agent invoke, dan admin cleanup.
+
+Postman Collection tersedia di:
+
+```text
+docs/postman-collection.json
+```
 
 ### 7. Bonus
 
 Status: ada beberapa.
 
-- File upload ringan melalui image attachment data URL pada message.
+- File upload ringan melalui image attachment data URL pada message, dengan validasi mime/base64/ukuran.
 - Pagination, search, dan filtering tersedia pada `GET /api/messages`.
 - Search/filter juga tersedia di UI dashboard.
-- Login rate limiting tersedia.
+- Login rate limiting tersedia dengan konfigurasi env dan response `429`.
 - Multi-agent bridge tersedia.
 - Admin cleanup dry-run tersedia.
 
@@ -257,6 +319,9 @@ Workspace:
 
 - `POST /api/categories`
 - `POST /api/channels`
+- `GET /api/workspace-members`
+- `POST /api/workspace-members`
+- `DELETE /api/workspace-members`
 
 Messages:
 
@@ -300,6 +365,16 @@ Docs:
 12. Invoke agent MASBRE/MASBRO/MASSEH.
 13. Lihat balasan agent tersimpan di message history.
 14. Buka `/api/docs/openapi` untuk dokumentasi API.
+
+## Pengujian
+
+Jalankan validasi kode dan production build:
+
+```bash
+npm run test
+```
+
+Script ini menjalankan `npm run lint` dan `npm run build`.
 
 ## Yang Masih Bisa Ditingkatkan
 
