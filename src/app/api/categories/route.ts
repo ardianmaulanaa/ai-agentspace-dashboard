@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isDashboardRequestAuthenticated } from "@/lib/auth";
+import { requireDashboardRoles } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { resolveWorkspaceId, slugify } from "@/lib/supabase-records";
 import { optionalString, readJsonObject, requiredString, validationError } from "@/lib/validation";
@@ -7,12 +7,8 @@ import { optionalString, readJsonObject, requiredString, validationError } from 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  if (!isDashboardRequestAuthenticated(request)) {
-    return NextResponse.json(
-      { ok: false, error: "Unauthorized." },
-      { status: 401 },
-    );
-  }
+  const authError = requireDashboardRoles(request, ["admin", "owner"]);
+  if (authError) return authError;
 
   const supabase = createServerSupabaseClient();
 

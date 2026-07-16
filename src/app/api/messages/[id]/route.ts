@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { isDashboardRequestAuthenticated } from "@/lib/auth";
+import { isDashboardRequestAuthenticated, requireDashboardRoles } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { isUuid } from "@/lib/supabase-records";
 import { optionalBoolean, optionalPlainObject, optionalString, readJsonObject, validationError } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,11 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
+
+  if (!isUuid(id)) {
+    return validationError("Message ID must be a valid UUID.");
+  }
+
   const body = await readJsonObject(request);
 
   if (!body) {
@@ -100,12 +106,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(request: Request, context: RouteContext) {
-  if (!isDashboardRequestAuthenticated(request)) {
-    return NextResponse.json(
-      { ok: false, error: "Unauthorized." },
-      { status: 401 },
-    );
-  }
+  const authError = requireDashboardRoles(request, ["admin", "owner"]);
+  if (authError) return authError;
 
   const supabase = createServerSupabaseClient();
 
@@ -117,6 +119,11 @@ export async function DELETE(request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
+
+  if (!isUuid(id)) {
+    return validationError("Message ID must be a valid UUID.");
+  }
+
   const result = await supabase
     .from("messages")
     .delete()

@@ -28,6 +28,22 @@ export async function GET() {
       { name: "Agents" },
       { name: "Admin" },
     ],
+    components: {
+      securitySchemes: {
+        dashboardCookieAuth: {
+          type: "apiKey",
+          in: "cookie",
+          name: "agentspace_access",
+          description: "JWT access token issued by /api/auth/login or /api/auth/register.",
+        },
+        dashboardRefreshCookie: {
+          type: "apiKey",
+          in: "cookie",
+          name: "agentspace_refresh",
+          description: "JWT refresh token used by /api/auth/refresh.",
+        },
+      },
+    },
     paths: {
       "/api/auth/login": {
         post: {
@@ -126,6 +142,7 @@ export async function GET() {
         get: {
           tags: ["Auth"],
           summary: "Get authenticated dashboard user",
+          security: [{ dashboardCookieAuth: [] }],
           responses: {
             "200": { description: "Current user" },
             "401": { description: "Unauthorized" },
@@ -136,6 +153,7 @@ export async function GET() {
         get: {
           tags: ["Dashboard"],
           summary: "Load workspaces, categories, channels, messages, and forum data",
+          security: [{ dashboardCookieAuth: [] }],
           responses: {
             "200": { description: "Dashboard data" },
             "401": { description: "Unauthorized" },
@@ -147,6 +165,7 @@ export async function GET() {
         post: {
           tags: ["Workspace"],
           summary: "Create a category in a workspace",
+          security: [{ dashboardCookieAuth: [] }],
           requestBody: {
             required: true,
             content: {
@@ -166,6 +185,7 @@ export async function GET() {
             "201": { description: "Category created" },
             "400": { description: "Validation error" },
             "401": { description: "Unauthorized" },
+            "403": { description: "Admin or owner role required" },
           },
         },
       },
@@ -173,6 +193,7 @@ export async function GET() {
         post: {
           tags: ["Workspace"],
           summary: "Create text, forum, or voice channel",
+          security: [{ dashboardCookieAuth: [] }],
           requestBody: {
             required: true,
             content: {
@@ -194,6 +215,7 @@ export async function GET() {
             "201": { description: "Channel created" },
             "400": { description: "Validation error" },
             "401": { description: "Unauthorized" },
+            "403": { description: "Admin or owner role required" },
           },
         },
       },
@@ -201,11 +223,13 @@ export async function GET() {
         get: {
           tags: ["Workspace"],
           summary: "List workspace members for admin/owner RBAC management",
+          security: [{ dashboardCookieAuth: [] }],
           parameters: [
             { name: "workspaceId", in: "query", schema: { type: "string", example: "agentspace" } },
           ],
           responses: {
             "200": { description: "Workspace members listed" },
+            "401": { description: "Unauthorized" },
             "403": { description: "Admin or owner role required" },
             "404": { description: "Workspace not found" },
           },
@@ -213,6 +237,7 @@ export async function GET() {
         post: {
           tags: ["Workspace"],
           summary: "Add or update workspace membership",
+          security: [{ dashboardCookieAuth: [] }],
           requestBody: {
             required: true,
             content: {
@@ -232,6 +257,7 @@ export async function GET() {
           responses: {
             "201": { description: "Membership upserted" },
             "400": { description: "Validation error" },
+            "401": { description: "Unauthorized" },
             "403": { description: "Admin or owner role required" },
             "404": { description: "Workspace or user not found" },
           },
@@ -239,6 +265,7 @@ export async function GET() {
         delete: {
           tags: ["Workspace"],
           summary: "Remove workspace membership",
+          security: [{ dashboardCookieAuth: [] }],
           requestBody: {
             required: true,
             content: {
@@ -257,6 +284,7 @@ export async function GET() {
           responses: {
             "200": { description: "Membership removed" },
             "400": { description: "Validation error" },
+            "401": { description: "Unauthorized" },
             "403": { description: "Admin or owner role required" },
             "404": { description: "Workspace not found" },
           },
@@ -266,6 +294,7 @@ export async function GET() {
         get: {
           tags: ["Messages"],
           summary: "List messages for a channel",
+          security: [{ dashboardCookieAuth: [] }],
           parameters: [
             { name: "workspaceId", in: "query", schema: { type: "string" } },
             { name: "channelId", in: "query", schema: { type: "string" } },
@@ -279,6 +308,7 @@ export async function GET() {
         post: {
           tags: ["Messages"],
           summary: "Create user message with optional image attachment",
+          security: [{ dashboardCookieAuth: [] }],
           requestBody: {
             required: true,
             content: {
@@ -312,20 +342,27 @@ export async function GET() {
         patch: {
           tags: ["Messages"],
           summary: "Edit, pin, or react to a message",
+          security: [{ dashboardCookieAuth: [] }],
           parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
           responses: { "200": { description: "Message updated" }, "404": { description: "Message not found" } },
         },
         delete: {
           tags: ["Messages"],
           summary: "Delete a message",
+          security: [{ dashboardCookieAuth: [] }],
           parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-          responses: { "200": { description: "Message deleted" } },
+          responses: {
+            "200": { description: "Message deleted" },
+            "401": { description: "Unauthorized" },
+            "403": { description: "Admin or owner role required" },
+          },
         },
       },
       "/api/forum-posts": {
         post: {
           tags: ["Forum"],
           summary: "Create forum post",
+          security: [{ dashboardCookieAuth: [] }],
           responses: { "201": { description: "Forum post created" }, "400": { description: "Validation error" } },
         },
       },
@@ -333,6 +370,7 @@ export async function GET() {
         post: {
           tags: ["Forum"],
           summary: "Reply to forum post",
+          security: [{ dashboardCookieAuth: [] }],
           parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
           responses: { "201": { description: "Reply created" }, "404": { description: "Forum post not found" } },
         },
@@ -341,6 +379,7 @@ export async function GET() {
         post: {
           tags: ["Agents"],
           summary: "Invoke an OpenClaw AI agent and persist its reply",
+          security: [{ dashboardCookieAuth: [] }],
           responses: { "200": { description: "Agent reply" }, "502": { description: "OpenClaw invoke failed" } },
         },
       },
@@ -348,8 +387,10 @@ export async function GET() {
         post: {
           tags: ["Admin"],
           summary: "Admin-only cleanup for chat/forum content",
+          security: [{ dashboardCookieAuth: [] }],
           responses: {
             "200": { description: "Cleanup dry-run or execution result" },
+            "401": { description: "Unauthorized" },
             "403": { description: "Admin role required" },
           },
         },
@@ -358,8 +399,10 @@ export async function GET() {
         get: {
           tags: ["Admin"],
           summary: "List Supabase Auth users for admin RBAC management",
+          security: [{ dashboardCookieAuth: [] }],
           responses: {
             "200": { description: "Users listed" },
+            "401": { description: "Unauthorized" },
             "403": { description: "Admin role required" },
             "500": { description: "Supabase/config error" },
           },
@@ -367,6 +410,7 @@ export async function GET() {
         patch: {
           tags: ["Admin"],
           summary: "Update a Supabase Auth user's dashboard role",
+          security: [{ dashboardCookieAuth: [] }],
           requestBody: {
             required: true,
             content: {
@@ -385,6 +429,7 @@ export async function GET() {
           responses: {
             "200": { description: "Role updated" },
             "400": { description: "Validation error" },
+            "401": { description: "Unauthorized" },
             "403": { description: "Admin role required" },
             "404": { description: "User not found" },
             "409": { description: "Self-downgrade blocked" },

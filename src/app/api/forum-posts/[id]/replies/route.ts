@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDashboardRequestUser, isDashboardRequestAuthenticated } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { isUuid } from "@/lib/supabase-records";
 import { readJsonObject, requiredString, validationError } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,11 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
+
+  if (!isUuid(id)) {
+    return validationError("Forum post ID must be a valid UUID.");
+  }
+
   const body = await readJsonObject(request);
 
   if (!body) {

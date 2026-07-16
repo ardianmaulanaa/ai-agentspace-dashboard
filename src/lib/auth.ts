@@ -286,3 +286,29 @@ export function isDashboardRequestAuthorized(
 
   return Boolean(role && allowedRoles.includes(role));
 }
+
+export function requireDashboardRoles(
+  request: Request,
+  allowedRoles: DashboardRole[],
+) {
+  const user = getDashboardRequestUser(request);
+
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized." },
+      { status: 401 },
+    );
+  }
+
+  if (!allowedRoles.includes(user.role)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Forbidden. Required role: ${allowedRoles.join(" or ")}.`,
+      },
+      { status: 403 },
+    );
+  }
+
+  return null;
+}

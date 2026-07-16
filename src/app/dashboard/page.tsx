@@ -119,6 +119,27 @@ type AdminUsersResult = {
   error?: string;
 };
 
+type WorkspaceMember = {
+  id: string;
+  workspaceId: string;
+  userId: string;
+  role: DashboardUser["role"];
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+type WorkspaceMembersResult = {
+  ok?: boolean;
+  workspaceId?: string;
+  members?: WorkspaceMember[];
+  member?: WorkspaceMember;
+  deleted?: {
+    workspaceId: string;
+    userId: string;
+  };
+  error?: string;
+};
+
 type AttachedImage = {
   src: string;
   name: string;
@@ -750,6 +771,17 @@ export default function AgentSpaceDashboard() {
   const [adminUsersLoading, setAdminUsersLoading] = useState(false);
   const [adminUsersError, setAdminUsersError] = useState("");
   const [updatingRoleUserId, setUpdatingRoleUserId] = useState("");
+  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>(
+    [],
+  );
+  const [workspaceMembersLoading, setWorkspaceMembersLoading] = useState(false);
+  const [workspaceMembersError, setWorkspaceMembersError] = useState("");
+  const [workspaceMemberUserId, setWorkspaceMemberUserId] = useState("");
+  const [workspaceMemberRole, setWorkspaceMemberRole] =
+    useState<DashboardUser["role"]>("member");
+  const [savingWorkspaceMember, setSavingWorkspaceMember] = useState(false);
+  const [deletingWorkspaceMemberUserId, setDeletingWorkspaceMemberUserId] =
+    useState("");
   const [pendingAgentReplies, setPendingAgentReplies] = useState(0);
   const [currentUser, setCurrentUser] = useState<DashboardUser>({
     username: "ardian",
@@ -1243,6 +1275,182 @@ export default function AgentSpaceDashboard() {
       });
     } finally {
       setUpdatingRoleUserId("");
+    }
+  }
+
+  async function loadWorkspaceMembers() {
+    setWorkspaceMembersLoading(true);
+    setWorkspaceMembersError("");
+
+    try {
+      const params = new URLSearchParams({ workspaceId: activeWs });
+      const response = await fetch(`/api/workspace-members?${params.toString()}`);
+      const data = (await response.json()) as WorkspaceMembersResult;
+
+      if (!response.ok || !data.ok) {
+        const message = data.error || "Failed to load workspace members.";
+        setWorkspaceMembersError(message);
+        logApiCall({
+          method: "GET",
+          endpoint: "/api/workspace-members",
+          status: response.status,
+          label: "Load workspace members",
+          payload: { workspaceId: activeWs },
+          response: { ok: false, error: message },
+        });
+        return;
+      }
+
+      setWorkspaceMembers(data.members || []);
+      logApiCall({
+        method: "GET",
+        endpoint: "/api/workspace-members",
+        status: response.status,
+        label: "Load workspace members",
+        payload: { workspaceId: activeWs },
+        response: { members: data.members?.length || 0 },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setWorkspaceMembersError(message);
+      logApiCall({
+        method: "GET",
+        endpoint: "/api/workspace-members",
+        status: 500,
+        label: "Load workspace members",
+        payload: { workspaceId: activeWs },
+        response: { ok: false, error: message },
+      });
+    } finally {
+      setWorkspaceMembersLoading(false);
+    }
+  }
+
+  async function saveWorkspaceMember(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+
+    const userId = workspaceMemberUserId.trim();
+    if (!userId) {
+      setWorkspaceMembersError("User ID wajib diisi.");
+      return;
+    }
+
+    setSavingWorkspaceMember(true);
+    setWorkspaceMembersError("");
+
+    try {
+      const response = await fetch("/api/workspace-members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: activeWs,
+          userId,
+          role: workspaceMemberRole,
+        }),
+      });
+      const data = (await response.json()) as WorkspaceMembersResult;
+
+      if (!response.ok || !data.ok || !data.member) {
+        const message = data.error || "Failed to save workspace member.";
+        setWorkspaceMembersError(message);
+        logApiCall({
+          method: "POST",
+          endpoint: "/api/workspace-members",
+          status: response.status,
+          label: "Save workspace member",
+          payload: { workspaceId: activeWs, userId, role: workspaceMemberRole },
+          response: { ok: false, error: message },
+        });
+        return;
+      }
+
+      setWorkspaceMembers((current) => {
+        const exists = current.some((member) => member.userId === userId);
+        return exists
+          ? current.map((member) =>
+              member.userId === userId ? (data.member as WorkspaceMember) : member,
+            )
+          : [...current, data.member as WorkspaceMember];
+      });
+      setWorkspaceMemberUserId("");
+      setWorkspaceMemberRole("member");
+      logApiCall({
+        method: "POST",
+        endpoint: "/api/workspace-members",
+        status: response.status,
+        label: "Save workspace member",
+        payload: { workspaceId: activeWs, userId, role: workspaceMemberRole },
+        response: { member: data.member.userId, role: data.member.role },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setWorkspaceMembersError(message);
+      logApiCall({
+        method: "POST",
+        endpoint: "/api/workspace-members",
+        status: 500,
+        label: "Save workspace member",
+        payload: { workspaceId: activeWs, userId, role: workspaceMemberRole },
+        response: { ok: false, error: message },
+      });
+    } finally {
+      setSavingWorkspaceMember(false);
+    }
+  }
+
+  async function deleteWorkspaceMember(userId: string) {
+    const shouldDelete = window.confirm("Hapus member ini dari workspace?");
+    if (!shouldDelete) return;
+
+    setDeletingWorkspaceMemberUserId(userId);
+    setWorkspaceMembersError("");
+
+    try {
+      const response = await fetch("/api/workspace-members", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId: activeWs, userId }),
+      });
+      const data = (await response.json()) as WorkspaceMembersResult;
+
+      if (!response.ok || !data.ok) {
+        const message = data.error || "Failed to delete workspace member.";
+        setWorkspaceMembersError(message);
+        logApiCall({
+          method: "DELETE",
+          endpoint: "/api/workspace-members",
+          status: response.status,
+          label: "Delete workspace member",
+          payload: { workspaceId: activeWs, userId },
+          response: { ok: false, error: message },
+        });
+        return;
+      }
+
+      setWorkspaceMembers((current) =>
+        current.filter((member) => member.userId !== userId),
+      );
+      logApiCall({
+        method: "DELETE",
+        endpoint: "/api/workspace-members",
+        status: response.status,
+        label: "Delete workspace member",
+        payload: { workspaceId: activeWs, userId },
+        response: { deleted: data.deleted?.userId || userId },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setWorkspaceMembersError(message);
+      logApiCall({
+        method: "DELETE",
+        endpoint: "/api/workspace-members",
+        status: 500,
+        label: "Delete workspace member",
+        payload: { workspaceId: activeWs, userId },
+        response: { ok: false, error: message },
+      });
+    } finally {
+      setDeletingWorkspaceMemberUserId("");
     }
   }
 
@@ -5215,8 +5423,11 @@ export default function AgentSpaceDashboard() {
                 },
                 {
                   title: "Member",
-                  desc: `${visibleProfiles.length} member dan agent online.`,
-                  action: () => openRightPanel("profiles"),
+                  desc: "Kelola role member di workspace aktif.",
+                  action: () => {
+                    openRightPanel("members");
+                    void loadWorkspaceMembers();
+                  },
                 },
                 {
                   title: "Pin",
@@ -5322,6 +5533,308 @@ export default function AgentSpaceDashboard() {
                     </span>
                   </div>
                 </button>
+              ))}
+            </div>
+          </div>
+        ) : rightPanel === "members" ? (
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              padding: isMobile ? "14px" : "16px",
+            }}
+          >
+            <div
+              style={{
+                borderRadius: 14,
+                padding: 16,
+                marginBottom: 14,
+                background: `linear-gradient(135deg, ${accent.from}18, ${accent.to}10)`,
+                border: `1px solid ${accent.from}28`,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 900,
+                  color: "var(--text-main)",
+                }}
+              >
+                Workspace Members
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--text-muted)",
+                  marginTop: 5,
+                  lineHeight: 1.55,
+                }}
+              >
+                Kelola member untuk workspace {activeWsData.name}. Role di sini
+                dipakai untuk akses level workspace.
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void loadWorkspaceMembers()}
+              disabled={workspaceMembersLoading}
+              style={{
+                width: "100%",
+                minHeight: 42,
+                padding: "9px 10px",
+                borderRadius: 10,
+                background: workspaceMembersLoading
+                  ? "var(--bg-btn-ghost)"
+                  : "var(--bg-input)",
+                border: "1px solid var(--border-subtle)",
+                color: workspaceMembersLoading
+                  ? "var(--text-muted)"
+                  : "var(--text-main)",
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontSize: 11,
+                fontWeight: 900,
+                cursor: workspaceMembersLoading ? "not-allowed" : "pointer",
+                marginBottom: 12,
+              }}
+            >
+              {workspaceMembersLoading ? "Loading members..." : "Load Members"}
+            </button>
+
+            {workspaceMembersError && (
+              <div
+                style={{
+                  marginBottom: 12,
+                  padding: "9px 10px",
+                  borderRadius: 10,
+                  background: "rgba(244,63,94,0.12)",
+                  border: "1px solid rgba(244,63,94,0.24)",
+                  color: "#fb7185",
+                  fontSize: 11,
+                  lineHeight: 1.45,
+                }}
+              >
+                {workspaceMembersError}
+              </div>
+            )}
+
+            <form
+              onSubmit={(event) => void saveWorkspaceMember(event)}
+              style={{
+                marginBottom: 14,
+                padding: 12,
+                borderRadius: 14,
+                background: "var(--bg-btn-ghost)",
+                border: "1px solid var(--border-subtle)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 900,
+                  color: "var(--text-main)",
+                  marginBottom: 8,
+                }}
+              >
+                Tambah / Update Member
+              </div>
+              <input
+                value={workspaceMemberUserId}
+                onChange={(event) => setWorkspaceMemberUserId(event.target.value)}
+                placeholder="Supabase Auth User ID"
+                style={{
+                  width: "100%",
+                  minHeight: 42,
+                  padding: "9px 10px",
+                  borderRadius: 10,
+                  background: "var(--bg-input)",
+                  border: "1px solid var(--border-subtle)",
+                  color: "var(--text-main)",
+                  outline: "none",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: 12,
+                  marginBottom: 8,
+                }}
+              />
+              <select
+                value={workspaceMemberRole}
+                onChange={(event) =>
+                  setWorkspaceMemberRole(event.target.value as DashboardUser["role"])
+                }
+                style={{
+                  width: "100%",
+                  minHeight: 42,
+                  padding: "9px 10px",
+                  borderRadius: 10,
+                  background: "var(--bg-input)",
+                  border: "1px solid var(--border-subtle)",
+                  color: "var(--text-main)",
+                  outline: "none",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  marginBottom: 9,
+                }}
+              >
+                <option value="member">member</option>
+                <option value="owner">owner</option>
+                <option value="admin">admin</option>
+              </select>
+              <button
+                type="submit"
+                disabled={savingWorkspaceMember || !workspaceMemberUserId.trim()}
+                style={{
+                  width: "100%",
+                  minHeight: 42,
+                  padding: "9px 10px",
+                  borderRadius: 10,
+                  background:
+                    savingWorkspaceMember || !workspaceMemberUserId.trim()
+                      ? "var(--bg-btn-ghost)"
+                      : `linear-gradient(135deg, ${accent.from}, ${accent.to})`,
+                  border: "none",
+                  color:
+                    savingWorkspaceMember || !workspaceMemberUserId.trim()
+                      ? "var(--text-muted)"
+                      : "white",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: 11,
+                  fontWeight: 900,
+                  cursor:
+                    savingWorkspaceMember || !workspaceMemberUserId.trim()
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                {savingWorkspaceMember ? "Saving..." : "Save Member"}
+              </button>
+            </form>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 9,
+              }}
+            >
+              {workspaceMembers.length === 0 && !workspaceMembersLoading ? (
+                <div
+                  style={{
+                    padding: 12,
+                    borderRadius: 14,
+                    background: "var(--bg-input)",
+                    border: "1px solid var(--border-subtle)",
+                    color: "var(--text-muted)",
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Belum ada data member yang dimuat. Klik Load Members untuk
+                  mengambil data workspace aktif.
+                </div>
+              ) : null}
+
+              {workspaceMembers.map((member) => (
+                <div
+                  key={member.userId}
+                  style={{
+                    padding: "10px 11px",
+                    borderRadius: 13,
+                    background: "var(--bg-input)",
+                    border: "1px solid var(--border-subtle)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 9,
+                    }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 900,
+                          color: "var(--text-main)",
+                          textTransform: "capitalize",
+                        }}
+                      >
+                        {member.role}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: "var(--text-muted)",
+                          marginTop: 3,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {member.userId}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWorkspaceMemberUserId(member.userId);
+                          setWorkspaceMemberRole(member.role);
+                        }}
+                        style={{
+                          minHeight: 34,
+                          padding: "7px 9px",
+                          borderRadius: 9,
+                          background: "var(--bg-btn-ghost)",
+                          border: "1px solid var(--border-subtle)",
+                          color: "var(--text-main)",
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          fontSize: 10,
+                          fontWeight: 900,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void deleteWorkspaceMember(member.userId)}
+                        disabled={deletingWorkspaceMemberUserId === member.userId}
+                        style={{
+                          minHeight: 34,
+                          padding: "7px 9px",
+                          borderRadius: 9,
+                          background: "rgba(244,63,94,0.10)",
+                          border: "1px solid rgba(244,63,94,0.22)",
+                          color:
+                            deletingWorkspaceMemberUserId === member.userId
+                              ? "var(--text-muted)"
+                              : "#fb7185",
+                          fontFamily: "'Space Grotesk', sans-serif",
+                          fontSize: 10,
+                          fontWeight: 900,
+                          cursor:
+                            deletingWorkspaceMemberUserId === member.userId
+                              ? "wait"
+                              : "pointer",
+                        }}
+                      >
+                        {deletingWorkspaceMemberUserId === member.userId
+                          ? "..."
+                          : "Hapus"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>

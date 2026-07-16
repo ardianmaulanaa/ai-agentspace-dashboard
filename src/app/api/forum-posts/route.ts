@@ -6,6 +6,8 @@ import { optionalString, readJsonObject, requiredString, validationError } from 
 
 export const dynamic = "force-dynamic";
 
+const forumStatuses = ["open", "closed", "resolved"] as const;
+
 export async function POST(request: Request) {
   if (!isDashboardRequestAuthenticated(request)) {
     return NextResponse.json(
@@ -36,10 +38,17 @@ export async function POST(request: Request) {
   const title = titleResult.value;
   const content = bodyResult.value;
   const tag = optionalString(body, "tag") || "General";
-  const status = optionalString(body, "status") || "open";
+  const rawStatus = optionalString(body, "status") || "open";
+  const status = forumStatuses.includes(rawStatus as typeof forumStatuses[number])
+    ? rawStatus
+    : null;
 
   if (titleResult.error || bodyResult.error) {
     return validationError("Forum title and body are required.");
+  }
+
+  if (!status) {
+    return validationError("Forum status must be open, closed, or resolved.");
   }
 
   const workspaceResult = await resolveWorkspaceId(supabase, workspaceInput);

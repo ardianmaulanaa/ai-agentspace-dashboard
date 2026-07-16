@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import type { DashboardRole } from "@/lib/auth";
-import { getDashboardRequestUser, isDashboardRequestAuthorized } from "@/lib/auth";
+import { getDashboardRequestUser, requireDashboardRoles } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { isUuid } from "@/lib/supabase-records";
 import { readJsonObject, requiredString, validationError } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -39,12 +40,8 @@ function serializeUser(user: {
 }
 
 export async function GET(request: Request) {
-  if (!isDashboardRequestAuthorized(request, ["admin"])) {
-    return NextResponse.json(
-      { ok: false, error: "Forbidden. Admin role is required." },
-      { status: 403 },
-    );
-  }
+  const authError = requireDashboardRoles(request, ["admin"]);
+  if (authError) return authError;
 
   const supabase = createServerSupabaseClient();
 
@@ -71,12 +68,8 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  if (!isDashboardRequestAuthorized(request, ["admin"])) {
-    return NextResponse.json(
-      { ok: false, error: "Forbidden. Admin role is required." },
-      { status: 403 },
-    );
-  }
+  const authError = requireDashboardRoles(request, ["admin"]);
+  if (authError) return authError;
 
   const currentUser = getDashboardRequestUser(request);
   const supabase = createServerSupabaseClient();
@@ -99,6 +92,10 @@ export async function PATCH(request: Request) {
 
   if (userIdResult.error) {
     return validationError(userIdResult.error);
+  }
+
+  if (!isUuid(userIdResult.value)) {
+    return validationError("User ID must be a valid UUID.");
   }
 
   if (roleResult.error) {

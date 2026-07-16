@@ -31,6 +31,20 @@
       }
     },
     {
+      "name": "Auth - Refresh",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/refresh"
+      }
+    },
+    {
+      "name": "Auth - Logout",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/logout"
+      }
+    },
+    {
       "name": "Dashboard - Data",
       "request": {
         "method": "GET",
@@ -81,6 +95,18 @@
       }
     },
     {
+      "name": "Workspace Members - Delete",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/workspace-members",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"userId\": \"{{userId}}\"\n}"
+        }
+      }
+    },
+    {
       "name": "Messages - List With Search",
       "request": {
         "method": "GET",
@@ -112,6 +138,25 @@
       }
     },
     {
+      "name": "Messages - Patch Pin Reaction",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/messages/{{messageId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pinned\": true,\n  \"reactions\": {\n    \"like\": 1\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "Messages - Delete",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/messages/{{messageId}}"
+      }
+    },
+    {
       "name": "Forum - Create Post",
       "request": {
         "method": "POST",
@@ -132,6 +177,37 @@
         "body": {
           "mode": "raw",
           "raw": "{\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"channelId\": \"{{channelId}}\",\n  \"agent\": \"MASBRE\",\n  \"message\": \"Beri ringkasan project ini\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Admin - Users",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/admin/users"
+      }
+    },
+    {
+      "name": "Admin - Update Role",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/admin/users",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"role\": \"member\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Admin - Cleanup Dry Run",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/admin/cleanup",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dryRun\": true\n}"
         }
       }
     },

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import type { DashboardRole } from "@/lib/auth";
-import { isDashboardRequestAuthorized } from "@/lib/auth";
+import { requireDashboardRoles } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
-import { resolveWorkspaceId } from "@/lib/supabase-records";
+import { isUuid, resolveWorkspaceId } from "@/lib/supabase-records";
 import { optionalString, readJsonObject, requiredString, validationError } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -35,12 +35,8 @@ function serializeMember(member: {
 }
 
 export async function GET(request: Request) {
-  if (!isDashboardRequestAuthorized(request, ["admin", "owner"])) {
-    return NextResponse.json(
-      { ok: false, error: "Forbidden. Admin or owner role is required." },
-      { status: 403 },
-    );
-  }
+  const authError = requireDashboardRoles(request, ["admin", "owner"]);
+  if (authError) return authError;
 
   const supabase = createServerSupabaseClient();
 
@@ -83,12 +79,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!isDashboardRequestAuthorized(request, ["admin", "owner"])) {
-    return NextResponse.json(
-      { ok: false, error: "Forbidden. Admin or owner role is required." },
-      { status: 403 },
-    );
-  }
+  const authError = requireDashboardRoles(request, ["admin", "owner"]);
+  if (authError) return authError;
 
   const supabase = createServerSupabaseClient();
 
@@ -111,6 +103,10 @@ export async function POST(request: Request) {
 
   if (userIdResult.error) {
     return validationError(userIdResult.error);
+  }
+
+  if (!isUuid(userIdResult.value)) {
+    return validationError("User ID must be a valid UUID.");
   }
 
   if (!role) {
@@ -166,12 +162,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!isDashboardRequestAuthorized(request, ["admin", "owner"])) {
-    return NextResponse.json(
-      { ok: false, error: "Forbidden. Admin or owner role is required." },
-      { status: 403 },
-    );
-  }
+  const authError = requireDashboardRoles(request, ["admin", "owner"]);
+  if (authError) return authError;
 
   const supabase = createServerSupabaseClient();
 
@@ -193,6 +185,10 @@ export async function DELETE(request: Request) {
 
   if (userIdResult.error) {
     return validationError(userIdResult.error);
+  }
+
+  if (!isUuid(userIdResult.value)) {
+    return validationError("User ID must be a valid UUID.");
   }
 
   const workspaceResult = await resolveWorkspaceId(supabase, workspaceInput);

@@ -19,7 +19,8 @@ Project ini dibuat sebagai studi kasus backend dengan autentikasi, role access, 
 - Login, register, refresh session, dan logout.
 - Session memakai access token dan refresh token di HTTP-only cookie.
 - Role user: `admin`, `owner`, dan `member`.
-- Admin dapat melihat user dan mengganti role.
+- Admin dapat melihat user, mengganti role, dan menjalankan cleanup terkontrol.
+- Admin/owner dapat mengelola struktur workspace dan membership.
 - Workspace memiliki member, category, channel, message, forum post, dan forum reply.
 - Channel mendukung tipe `text`, `forum`, dan `voice`.
 - Message mendukung edit, pin, reaction, delete, search, filter, dan pagination.
@@ -126,9 +127,9 @@ Relasi penting:
 
 Role disimpan di Supabase Auth `user_metadata.role`.
 
-- `admin`: akses penuh untuk pengelolaan user, role, dan endpoint admin.
-- `owner`: pengelola workspace dan member workspace.
-- `member`: user biasa yang memakai dashboard dan fitur chat.
+- `admin`: akses penuh untuk user, role, workspace, membership, cleanup, dan endpoint admin.
+- `owner`: pengelola struktur workspace, member workspace, dan moderasi message.
+- `member`: user biasa yang memakai dashboard, chat, forum, dan agent invoke.
 
 Untuk menjadikan user sebagai admin lewat Supabase SQL Editor:
 
@@ -158,18 +159,18 @@ Dashboard:
 
 Workspace:
 
-- `POST /api/categories`
-- `POST /api/channels`
-- `GET /api/workspace-members`
-- `POST /api/workspace-members`
-- `DELETE /api/workspace-members`
+- `POST /api/categories` (`admin`/`owner`)
+- `POST /api/channels` (`admin`/`owner`)
+- `GET /api/workspace-members` (`admin`/`owner`)
+- `POST /api/workspace-members` (`admin`/`owner`)
+- `DELETE /api/workspace-members` (`admin`/`owner`)
 
 Messages:
 
 - `GET /api/messages`
 - `POST /api/messages`
 - `PATCH /api/messages/:id`
-- `DELETE /api/messages/:id`
+- `DELETE /api/messages/:id` (`admin`/`owner`)
 
 Forum:
 
@@ -198,8 +199,11 @@ Docs:
 - Route dashboard dilindungi middleware.
 - Endpoint privat membaca session dari cookie.
 - Endpoint admin memeriksa role `admin`.
+- Endpoint workspace management memeriksa role `admin` atau `owner`.
+- API membedakan status `401` untuk belum login dan `403` untuk role yang tidak cukup.
 - Login memakai rate limiting per kombinasi IP dan email.
 - Request payload divalidasi sebelum diproses.
+- ID sensitif divalidasi sebagai UUID dan enum seperti role/status/type ditolak jika tidak valid.
 
 Jika login gagal terlalu sering, API mengembalikan `429` beserta header `Retry-After`.
 
@@ -238,11 +242,12 @@ Jalankan:
 npm run test
 ```
 
-Script tersebut menjalankan lint dan production build:
+Script tersebut menjalankan lint, production build, lalu API smoke test:
 
 ```bash
 npm run lint
 npm run build
+npm run test:api
 ```
 
 ## Penyimpanan Konfigurasi

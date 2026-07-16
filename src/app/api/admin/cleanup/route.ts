@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isDashboardRequestAuthorized } from "@/lib/auth";
+import { requireDashboardRoles } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { readJsonObject } from "@/lib/validation";
 
@@ -63,12 +63,8 @@ async function deleteRows(
 }
 
 export async function POST(request: Request) {
-  if (!isDashboardRequestAuthorized(request, ["admin"])) {
-    return NextResponse.json(
-      { ok: false, error: "Forbidden. Admin role is required." },
-      { status: 403 },
-    );
-  }
+  const authError = requireDashboardRoles(request, ["admin"]);
+  if (authError) return authError;
 
   const supabase = createServerSupabaseClient();
 

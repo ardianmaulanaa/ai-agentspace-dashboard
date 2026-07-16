@@ -1,20 +1,16 @@
 import { NextResponse } from "next/server";
-import { isDashboardRequestAuthenticated } from "@/lib/auth";
+import { requireDashboardRoles } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { resolveWorkspaceId, slugify } from "@/lib/supabase-records";
-import { enumValue, optionalString, readJsonObject, requiredString, validationError } from "@/lib/validation";
+import { optionalString, readJsonObject, requiredString, validationError } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
 const channelTypes = ["text", "forum", "voice"] as const;
 
 export async function POST(request: Request) {
-  if (!isDashboardRequestAuthenticated(request)) {
-    return NextResponse.json(
-      { ok: false, error: "Unauthorized." },
-      { status: 401 },
-    );
-  }
+  const authError = requireDashboardRoles(request, ["admin", "owner"]);
+  if (authError) return authError;
 
   const supabase = createServerSupabaseClient();
 
@@ -36,10 +32,17 @@ export async function POST(request: Request) {
   const categoryName = optionalString(body, "category");
   const name = nameResult.value;
   const slug = slugify(name);
-  const type = enumValue(optionalString(body, "type"), channelTypes, "text");
+  const rawType = optionalString(body, "type") || "text";
+  const type = channelTypes.includes(rawType as typeof channelTypes[number])
+    ? (rawType as typeof channelTypes[number])
+    : null;
 
   if (nameResult.error || !slug) {
     return validationError("Channel name is required.");
+  }
+
+  if (!type) {
+    return validationError("Channel type must be text, forum, or voice.");
   }
 
   const workspaceResult = await resolveWorkspaceId(supabase, workspaceInput);
