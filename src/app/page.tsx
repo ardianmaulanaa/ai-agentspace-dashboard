@@ -207,14 +207,6 @@ export default function LoginPage() {
           Buat akun baru
         </Link>
 
-        <div style={{
-          marginTop: 14,
-          color: "rgba(255,255,255,0.32)",
-          fontSize: 11,
-          lineHeight: 1.6,
-        }}>
-          Credential disimpan di file env lokal, bukan di browser.
-        </div>
       </form>
 
       <style>{`

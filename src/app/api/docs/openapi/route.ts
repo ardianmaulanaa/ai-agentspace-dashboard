@@ -386,30 +386,30 @@ export async function GET() {
       "/api/admin/cleanup": {
         post: {
           tags: ["Admin"],
-          summary: "Admin-only cleanup for chat/forum content",
+          summary: "Owner/admin cleanup for chat/forum content",
           security: [{ dashboardCookieAuth: [] }],
           responses: {
             "200": { description: "Cleanup dry-run or execution result" },
             "401": { description: "Unauthorized" },
-            "403": { description: "Admin role required" },
+            "403": { description: "Owner or admin role required" },
           },
         },
       },
       "/api/admin/users": {
         get: {
           tags: ["Admin"],
-          summary: "List Supabase Auth users for admin RBAC management",
+          summary: "List Supabase Auth users for owner/admin RBAC management",
           security: [{ dashboardCookieAuth: [] }],
           responses: {
             "200": { description: "Users listed" },
             "401": { description: "Unauthorized" },
-            "403": { description: "Admin role required" },
+            "403": { description: "Owner or admin role required" },
             "500": { description: "Supabase/config error" },
           },
         },
         patch: {
           tags: ["Admin"],
-          summary: "Update a Supabase Auth user's dashboard role",
+          summary: "Update a Supabase Auth user's dashboard role. Only owner can grant or modify owner role",
           security: [{ dashboardCookieAuth: [] }],
           requestBody: {
             required: true,
@@ -430,7 +430,7 @@ export async function GET() {
             "200": { description: "Role updated" },
             "400": { description: "Validation error" },
             "401": { description: "Unauthorized" },
-            "403": { description: "Admin role required" },
+            "403": { description: "Owner/admin role required, or only owner can modify owner role" },
             "404": { description: "User not found" },
             "409": { description: "Self-downgrade blocked" },
           },

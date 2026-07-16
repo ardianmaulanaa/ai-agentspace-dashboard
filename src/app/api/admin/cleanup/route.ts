@@ -63,7 +63,7 @@ async function deleteRows(
 }
 
 export async function POST(request: Request) {
-  const authError = requireDashboardRoles(request, ["admin"]);
+  const authError = requireDashboardRoles(request, ["owner", "admin"]);
   if (authError) return authError;
 
   const supabase = createServerSupabaseClient();

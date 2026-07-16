@@ -19,8 +19,9 @@ Project ini dibuat sebagai studi kasus backend dengan autentikasi, role access, 
 - Login, register, refresh session, dan logout.
 - Session memakai access token dan refresh token di HTTP-only cookie.
 - Role user: `admin`, `owner`, dan `member`.
-- Admin dapat melihat user, mengganti role, dan menjalankan cleanup terkontrol.
+- Owner dapat melihat user, mengganti role tertinggi, dan menjalankan cleanup terkontrol.
 - Admin/owner dapat mengelola struktur workspace dan membership.
+- Admin dapat membantu mengelola user non-owner dan operasional dashboard.
 - Workspace memiliki member, category, channel, message, forum post, dan forum reply.
 - Channel mendukung tipe `text`, `forum`, dan `voice`.
 - Message mendukung edit, pin, reaction, delete, search, filter, dan pagination.
@@ -73,7 +74,7 @@ konfigurasi:
 ```env
 DASHBOARD_USERNAME=ardian
 DASHBOARD_DISPLAY_NAME=Ardian
-DASHBOARD_ROLE=admin
+DASHBOARD_ROLE=owner
 DASHBOARD_JWT_SECRET=your-jwt-secret
 DASHBOARD_PASSWORD_HASH=your-bcrypt-password-hash
 DASHBOARD_PASSWORD=your-demo-password
@@ -127,16 +128,16 @@ Relasi penting:
 
 Role disimpan di Supabase Auth `user_metadata.role`.
 
-- `admin`: akses penuh untuk user, role, workspace, membership, cleanup, dan endpoint admin.
-- `owner`: pengelola struktur workspace, member workspace, dan moderasi message.
+- `owner`: role tertinggi, akses penuh untuk user, role owner/admin/member, workspace, membership, cleanup, dan endpoint admin.
+- `admin`: pengelola user non-owner, struktur workspace, member workspace, dan moderasi message.
 - `member`: user biasa yang memakai dashboard, chat, forum, dan agent invoke.
 
-Untuk menjadikan user sebagai admin lewat Supabase SQL Editor:
+Untuk menjadikan user sebagai owner lewat Supabase SQL Editor:
 
 ```sql
 update auth.users
 set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb)
-  || '{"role":"admin"}'::jsonb
+  || '{"role":"owner"}'::jsonb
 where email = 'ardian@agentspace.com';
 ```
 
@@ -198,7 +199,8 @@ Docs:
 - Access token dan refresh token disimpan sebagai HTTP-only cookie.
 - Route dashboard dilindungi middleware.
 - Endpoint privat membaca session dari cookie.
-- Endpoint admin memeriksa role `admin`.
+- Endpoint admin memeriksa role `owner` atau `admin`.
+- Hanya `owner` yang bisa memberi, mengubah, atau mencabut role `owner`.
 - Endpoint workspace management memeriksa role `admin` atau `owner`.
 - API membedakan status `401` untuk belum login dan `403` untuk role yang tidak cukup.
 - Login memakai rate limiting per kombinasi IP dan email.

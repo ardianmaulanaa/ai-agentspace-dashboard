@@ -602,7 +602,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 AUTH_USER_STORE=supabase-auth
 DASHBOARD_USERNAME=
 DASHBOARD_DISPLAY_NAME=
-DASHBOARD_ROLE=admin
+DASHBOARD_ROLE=owner
 DASHBOARD_JWT_SECRET=
 DASHBOARD_PASSWORD_HASH=
 DASHBOARD_PASSWORD=
@@ -1192,7 +1192,7 @@ export default function AgentSpaceDashboard() {
           endpoint: "/api/admin/users",
           status: response.status,
           label: "Load admin users",
-          payload: { roleRequired: "admin" },
+          payload: { roleRequired: "owner/admin" },
           response: { ok: false, error: message },
         });
         return;
@@ -1204,7 +1204,7 @@ export default function AgentSpaceDashboard() {
         endpoint: "/api/admin/users",
         status: response.status,
         label: "Load admin users",
-        payload: { roleRequired: "admin" },
+        payload: { roleRequired: "owner/admin" },
         response: { users: data.users?.length || 0 },
       });
     } catch (error) {
@@ -1215,7 +1215,7 @@ export default function AgentSpaceDashboard() {
         endpoint: "/api/admin/users",
         status: 500,
         label: "Load admin users",
-        payload: { roleRequired: "admin" },
+        payload: { roleRequired: "owner/admin" },
         response: { ok: false, error: message },
       });
     } finally {
@@ -7154,7 +7154,7 @@ export default function AgentSpaceDashboard() {
                     Kelola role Supabase Auth untuk RBAC dashboard.
                   </div>
                 </div>
-                <NeonBadge color="#60a5fa">admin</NeonBadge>
+                <NeonBadge color="#60a5fa">owner/admin</NeonBadge>
               </div>
               <button
                 type="button"
@@ -7257,7 +7257,9 @@ export default function AgentSpaceDashboard() {
                             value={user.role}
                             disabled={
                               updatingRoleUserId === user.id ||
-                              (isCurrentUser && user.role === "admin")
+                              (isCurrentUser && user.role !== "member") ||
+                              (currentUser.role !== "owner" &&
+                                user.role === "owner")
                             }
                             onChange={(event) =>
                               void updateAdminUserRole(
@@ -7281,9 +7283,14 @@ export default function AgentSpaceDashboard() {
                                   : "pointer",
                             }}
                           >
-                            <option value="member">member</option>
-                            <option value="owner">owner</option>
+                            <option
+                              value="owner"
+                              disabled={currentUser.role !== "owner"}
+                            >
+                              owner
+                            </option>
                             <option value="admin">admin</option>
+                            <option value="member">member</option>
                           </select>
                         </div>
                       </div>

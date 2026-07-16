@@ -30,6 +30,11 @@ type DashboardJwtPayload = DashboardUser & {
 const ACCESS_TOKEN_TTL_SECONDS = 60 * 15;
 const REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7;
 const BCRYPT_SALT_ROUNDS = 12;
+const ROLE_RANK: Record<DashboardRole, number> = {
+  owner: 3,
+  admin: 2,
+  member: 1,
+};
 
 export function getDashboardUser(): DashboardUser {
   return {
@@ -58,7 +63,11 @@ export function getDashboardRole(): DashboardRole {
     return role;
   }
 
-  return "admin";
+  return "owner";
+}
+
+export function isRoleAtLeast(role: DashboardRole, minimumRole: DashboardRole) {
+  return ROLE_RANK[role] >= ROLE_RANK[minimumRole];
 }
 
 function safeEqualString(actual: string | undefined, expected: string) {

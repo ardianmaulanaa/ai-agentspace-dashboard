@@ -8,7 +8,7 @@ import { readJsonObject, requiredString, validationError } from "@/lib/validatio
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const ROLES = ["admin", "owner", "member"] as const;
+const ROLES = ["owner", "admin", "member"] as const;
 
 function normalizeRole(role: string): DashboardRole | null {
   const normalized = role.trim().toLowerCase();
@@ -40,7 +40,7 @@ function serializeUser(user: {
 }
 
 export async function GET(request: Request) {
-  const authError = requireDashboardRoles(request, ["admin"]);
+  const authError = requireDashboardRoles(request, ["owner", "admin"]);
   if (authError) return authError;
 
   const supabase = createServerSupabaseClient();
@@ -68,7 +68,7 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const authError = requireDashboardRoles(request, ["admin"]);
+  const authError = requireDashboardRoles(request, ["owner", "admin"]);
   if (authError) return authError;
 
   const currentUser = getDashboardRequestUser(request);
@@ -119,9 +119,20 @@ export async function PATCH(request: Request) {
 
   const target = targetResult.data.user;
   const targetEmail = target.email || "";
+  const targetRole = normalizeRole(
+    typeof target.user_metadata?.role === "string" ? target.user_metadata.role : "",
+  ) || "member";
+  const currentRole = currentUser?.role || "member";
 
-  if (currentUser?.username.toLowerCase() === targetEmail.toLowerCase() && role !== "admin") {
-    return validationError("Admin cannot downgrade their own role while signed in.", 409);
+  if (currentRole !== "owner" && (targetRole === "owner" || role === "owner")) {
+    return NextResponse.json(
+      { ok: false, error: "Forbidden. Only owner can grant or modify owner role." },
+      { status: 403 },
+    );
+  }
+
+  if (currentUser?.username.toLowerCase() === targetEmail.toLowerCase() && role !== currentRole) {
+    return validationError("You cannot downgrade your own active role while signed in.", 409);
   }
 
   const existingMetadata = target.user_metadata || {};
